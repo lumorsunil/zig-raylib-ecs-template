@@ -1,0 +1,21 @@
+.{
+    .name = .zig_raylib_ecs_template,
+    .version = "0.0.0",
+    .fingerprint = 0x590ece4e49ade82, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.16.0",
+    .dependencies = .{
+        .entt = .{
+            .url = "git+https://github.com/prime31/zig-ecs#d3a429a157a0502ff4b3b2fa9389251bffca269e",
+            .hash = "entt-1.0.0-qJPtbEjuAgBGugkES3DQsThMbIilGXJhTqgcpp121VDK",
+        },
+        .raylib_zig = .{
+            .url = "git+https://github.com/raylib-zig/raylib-zig#97be2c7ae646a2f09856604b138c427c0af1b952",
+            .hash = "raylib_zig-6.0.0-KE8REDJ4BQBu7lKwYNt6R4j5ywPeS37zqW6zrtjCcRwH",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

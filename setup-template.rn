@@ -1,0 +1,29 @@
+fn Void @(out_dir: String) Void
+
+const dir = echo "${basename "${pwd}"}" | tr "-d" "\n"
+if (dir == "zig-raylib-ecs-template") {
+  echo "error: don't call this within the template dir" >&2
+  exit 1
+}
+const template_root = $ZIG_RAYLIB_ECS_TEMPLATE_ROOT
+if ("${template_root}" == "null") {
+  echo "error: ZIG_RAYLIB_ECS_TEMPLATE_ROOT env var not set" >&2
+  exit 1
+}
+echo "initializing zig raylib ecs project into ${out_dir}"
+zig "init"
+git "init"
+rm "-rf" "src"
+rm "-rf" "${template_root}/template/.zig-cache"
+rm "-rf" "${template_root}/template/zig-pkg"
+rm "-rf" "${template_root}/template/zig-out"
+bash "-c" "cp -R ${template_root}/template ${out_dir}"
+bash "-c" "mv template/* ."
+bash "-c" "mv template/.gitignore ."
+rmdir "template"
+bash "-c" "cp ${template_root}/zon-modifier.zig ."
+const zon = bash "-c" "zig run zon-modifier.zig"
+echo zon > "build.zig.zon"
+bash "-c" "rm zon-modifier.zig"
+bash "-c" "rm _build.zig.zon"
+tree
