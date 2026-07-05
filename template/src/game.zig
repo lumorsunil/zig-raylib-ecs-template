@@ -11,6 +11,7 @@ pub const Game = struct {
     pub const Camera = rl.Camera2D;
     pub const Vector = rl.Vector2;
     pub const Color = rl.Color;
+    pub const Texture = rl.Texture2D;
 
     pub const C = @import("components.zig");
     pub const S = @import("systems.zig");
@@ -25,6 +26,7 @@ pub const Game = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        self.physics().deinit(self.allocator);
         self.reg.deinit();
         rl.closeWindow();
     }
@@ -74,13 +76,20 @@ pub const Game = struct {
         return self.reg.singletons().get(T);
     }
 
-    pub fn camera(self: *@This()) *Camera {
-        return self.getSingleton(Camera);
+    fn singletonFn(comptime T: type) fn (*Game) *T {
+        return struct {
+            pub fn get(self: *Game) *T {
+                return self.getSingleton(T);
+            }
+        }.get;
     }
 
-    pub fn input(self: *@This()) *Game.S.Input {
-        return self.getSingleton(Game.S.Input);
-    }
+    pub const camera = singletonFn(Camera);
+    pub const cameraSystem = singletonFn(Game.S.Camera);
+    pub const input = singletonFn(Game.S.Input);
+    pub const physics = singletonFn(Game.S.Physics);
+    pub const controllable = singletonFn(Game.S.Controllable);
+    pub const destroyEntitiesSystem = singletonFn(Game.S.DestroyEntities);
 
     pub fn createEntity(self: *@This()) EntityContext {
         return .init(self, self.reg.create());
@@ -91,12 +100,26 @@ pub const Game = struct {
         destroy_entities.destroy(entity);
     }
 
+    pub fn getOneByTag(self: *@This(), comptime T: type) EntityContext {
+        var it = self.entityIterator(.{T}, .{});
+        return it.next().?;
+    }
+
+    pub fn tryGetOneByTag(self: *@This(), comptime T: type) ?EntityContext {
+        var it = self.entityIterator(.{T}, .{});
+        return it.next();
+    }
+
     pub const EntityContext = struct {
         game: *Game,
         entity: ecs.Entity,
 
         pub fn init(game: *Game, entity: ecs.Entity) @This() {
             return .{ .game = game, .entity = entity };
+        }
+
+        pub fn has(self: EntityContext, comptime T: type) bool {
+            return self.game.reg.has(T, self.entity);
         }
 
         pub fn get(self: EntityContext, comptime T: type) *T {
@@ -125,6 +148,10 @@ pub const Game = struct {
 
         pub fn destroy(self: EntityContext) void {
             self.game.destroyEntity(self.entity);
+        }
+
+        pub fn valid(self: EntityContext) bool {
+            return self.game.reg.valid(self.entity);
         }
     };
 
@@ -172,5 +199,19 @@ pub const Game = struct {
 
     pub fn random(self: *@This()) std.Random {
         return self.random_io.interface();
+    }
+
+    pub fn hitbox(_: *@This(), ctx: EntityContext) Game.C.Hitbox {
+        const body = ctx.get(Game.C.Body);
+        var hitbox_component = ctx.tryGetConst(Game.C.Hitbox) orelse {
+            const renderable = ctx.get(Game.C.Renderable);
+            const size = renderable.size(body.rotation);
+
+            return .init(body.position, size);
+        };
+
+        hitbox_component.setPosition(body.position.add(hitbox_component.position()));
+
+        return hitbox_component;
     }
 };

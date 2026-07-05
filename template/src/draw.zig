@@ -7,6 +7,7 @@ const enable_debug_draw = true;
 pub fn draw(self: *Game) void {
     rl.clearBackground(.black);
     self.camera().begin();
+    drawGrid(self);
     drawRenderables(self);
     self.camera().end();
     rl.drawFPS(8, 8);
@@ -46,5 +47,22 @@ fn drawRenderables(self: *Game) void {
         const renderable = ctx.get(Game.C.Renderable);
 
         renderable.draw(body.position, body.rotation);
+    }
+}
+
+fn drawGrid(self: *Game) void {
+    const grid = self.physics().grid orelse return;
+
+    for (0..grid.width) |x| {
+        for (0..grid.height) |y| {
+            if (!grid.isSolid(self, x, y)) continue;
+
+            const size = grid.cellSize();
+            const position = Game.Vector.init(
+                @floatFromInt(x),
+                @floatFromInt(y),
+            ).multiply(size);
+            rl.drawRectangleV(position, size, .light_gray);
+        }
     }
 }

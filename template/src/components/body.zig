@@ -7,6 +7,8 @@ pub const Body = struct {
     acceleration: Game.Vector = .init(0, 0),
     rotation: f32 = 0,
     angular_velocity: f32 = 0,
+    lock_x: bool = false,
+    lock_y: bool = false,
 
     pub fn init(position: Game.Vector) @This() {
         return .{

@@ -12,10 +12,26 @@ pub const Input = struct {
 
     pub const Action = enum {
         shoot,
+        move_right,
+        move_up,
+        move_left,
+        move_down,
     };
 
     pub const action_map = [std.meta.tags(Action).len]rl.GamepadButton{
         .right_face_left, // shoot
+        .left_face_right, // move_right
+        .left_face_up, // move_up
+        .left_face_left, // move_left
+        .left_face_down, // move_down
+    };
+
+    pub const alternative_map = [std.meta.tags(Action).len]rl.KeyboardKey{
+        .space, // shoot
+        .d, // move_right
+        .w, // move_up
+        .a, // move_left
+        .s, // move_down
     };
 
     pub fn init() @This() {
@@ -43,18 +59,28 @@ pub const Input = struct {
     }
 
     pub fn isDown(self: @This(), action: Action) bool {
-        return rl.isGamepadButtonDown(0, self.mapAction(action));
+        if (rl.isGamepadButtonDown(0, self.mapAction(action))) return true;
+        if (rl.isKeyDown(self.mapActionAlternative(action))) return true;
+        return false;
     }
 
     pub fn isPressed(self: @This(), action: Action) bool {
-        return rl.isGamepadButtonPressed(0, self.mapAction(action));
+        if (rl.isGamepadButtonPressed(0, self.mapAction(action))) return true;
+        if (rl.isKeyPressed(self.mapActionAlternative(action))) return true;
+        return false;
     }
 
     pub fn isReleased(self: @This(), action: Action) bool {
-        return rl.isGamepadButtonReleased(0, self.mapAction(action));
+        if (rl.isGamepadButtonReleased(0, self.mapAction(action))) return true;
+        if (rl.isKeyReleased(self.mapActionAlternative(action))) return true;
+        return false;
     }
 
     fn mapAction(_: @This(), action: Action) rl.GamepadButton {
         return action_map[@intFromEnum(action)];
+    }
+
+    fn mapActionAlternative(_: @This(), action: Action) rl.KeyboardKey {
+        return alternative_map[@intFromEnum(action)];
     }
 };
