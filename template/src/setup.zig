@@ -1,14 +1,14 @@
+const std = @import("std");
 const Game = @import("game.zig").Game;
 const rl = @import("raylib");
 
-pub fn setup(self: *Game) void {
+pub fn setup(self: *Game) !void {
     initRaylib(self);
 
     createCamera(self);
-    // createSpritesheet(self);
+    initAssets(self, .load_all);
     createSystems(self);
-    createDefaultGrid(self) catch unreachable;
-    createPlayer(self);
+    try @import("demo.zig").createDemo(self);
 }
 
 fn initRaylib(self: *Game) void {
@@ -27,9 +27,30 @@ fn createCamera(self: *Game) void {
     });
 }
 
-fn createSpritesheet(self: *Game) void {
-    const spritesheet = rl.loadTexture("spritesheet.png") catch unreachable;
-    self.addSingleton(spritesheet);
+const InitAssetsOptions = enum {
+    load_all,
+    init_only,
+};
+
+fn initAssets(self: *Game, options: InitAssetsOptions) void {
+    const textures, const sounds, const musics = brk: switch (options) {
+        .load_all => {
+            const textures = Game.Assets.loadAllTextures(self.allocator);
+            const sounds = Game.Assets.loadAllSounds(self.allocator);
+            const musics = Game.Assets.loadAllMusic(self.allocator);
+            break :brk .{ textures, sounds, musics };
+        },
+        .init_only => {
+            const textures = Game.Assets.Textures.empty;
+            const sounds = Game.Assets.Sounds.empty;
+            const musics = Game.Assets.Musics.empty;
+            break :brk .{ textures, sounds, musics };
+        },
+    };
+
+    self.addSingleton(textures);
+    self.addSingleton(sounds);
+    self.addSingleton(musics);
 }
 
 fn createSystems(self: *Game) void {
@@ -39,29 +60,4 @@ fn createSystems(self: *Game) void {
     self.addSingleton(Game.S.DestroyEntities.init());
     self.addSingleton(Game.S.Camera.init());
     self.addSingleton(Game.S.RelativePosition.init());
-}
-
-fn createPlayer(self: *Game) void {
-    const player = self.createEntity();
-    player.add(Game.C.Renderable.initRectangle(.init(16, 16), .white));
-    player.add(Game.C.Body.init(.init(150, 128)));
-    player.add(Game.C.Controllable.init());
-}
-
-fn createDefaultGrid(self: *Game) !void {
-    const grid = try Game.S.Physics.DefaultGrid.init(self.allocator, 10, 8);
-
-    for (0..grid.width) |x| {
-        for (0..grid.height) |y| {
-            const cell = &grid.data[x + y * grid.width];
-
-            if (y == grid.height - 2 and x > 0 and x < grid.width - 1) {
-                cell.is_solid = true;
-            } else {
-                cell.is_solid = false;
-            }
-        }
-    }
-
-    self.physics().grid = grid;
 }

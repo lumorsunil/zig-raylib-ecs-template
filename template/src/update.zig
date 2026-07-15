@@ -1,6 +1,7 @@
 const Game = @import("game.zig").Game;
 
 pub fn update(self: *Game) void {
+    self.updateTime();
     self.input().update();
     self.controllable().update(self);
     self.physics().update(self);

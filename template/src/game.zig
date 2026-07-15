@@ -7,6 +7,13 @@ pub const Game = struct {
     allocator: std.mem.Allocator,
     reg: ecs.Registry,
     random_io: std.Random.IoSource,
+    elapsed_time: f64 = 0,
+    delta_time: f32 = 0,
+    physics_frames: usize = 0,
+    rem_time: f32 = 0,
+    is_paused: bool = false,
+
+    pub const Assets = @import("assets.zig").Assets;
 
     pub const Camera = rl.Camera2D;
     pub const Vector = rl.Vector2;
@@ -52,12 +59,28 @@ pub const Game = struct {
         return 60;
     }
 
-    pub fn elapsedTime(_: @This()) f64 {
+    pub fn physicsFps(_: @This()) u8 {
+        return 60;
+    }
+
+    pub fn elapsedTime(self: @This()) f64 {
+        return self.elapsed_time;
+    }
+
+    pub fn elapsedRealTime(_: @This()) f64 {
         return rl.getTime();
     }
 
-    pub fn deltaTime(_: @This()) f32 {
+    pub fn deltaTime(self: @This()) f32 {
+        return self.delta_time;
+    }
+
+    pub fn deltaRealTime(_: @This()) f32 {
         return rl.getFrameTime();
+    }
+
+    pub fn physicsTimeStep(self: @This()) f32 {
+        return 1.0 / @as(f32, self.physicsFps());
     }
 
     pub fn screenSize(self: @This()) Vector {
@@ -128,6 +151,16 @@ pub const Game = struct {
 
         pub fn getConst(self: EntityContext, comptime T: type) T {
             return self.game.reg.getConst(T, self.entity);
+        }
+
+        /// If the entry wasn't found, it is initialized with ```undefined```
+        pub fn getOrAdd(self: EntityContext, comptime T: type) *T {
+            // Own implementation since zig-ecs doesn't initialize
+            // value to undefined, it tries to use default constructor
+            // which makes some types impossible to use with the original getOrAdd
+            if (self.tryGet(T)) |ptr| return ptr;
+            self.add(@as(T, undefined));
+            return self.get(T);
         }
 
         pub fn tryGet(self: EntityContext, comptime T: type) ?*T {
@@ -213,5 +246,25 @@ pub const Game = struct {
         hitbox_component.setPosition(body.position.add(hitbox_component.position()));
 
         return hitbox_component;
+    }
+
+    pub fn pauseTime(self: *@This()) void {
+        self.is_paused = true;
+    }
+
+    pub fn unpauseTime(self: *@This()) void {
+        self.is_paused = false;
+    }
+
+    pub fn updateTime(self: *@This()) void {
+        if (self.is_paused) return;
+        const time_step = self.physicsTimeStep();
+        const dt = self.deltaRealTime();
+        self.elapsed_time += @as(f32, @floatFromInt(self.physics_frames)) * time_step;
+        const f_physics_frames: f32 = @divFloor(dt + self.rem_time, time_step);
+        const physics_delta_time = f_physics_frames * time_step;
+        self.physics_frames = @intFromFloat(f_physics_frames);
+        self.rem_time -= physics_delta_time - dt;
+        self.delta_time = physics_delta_time;
     }
 };
