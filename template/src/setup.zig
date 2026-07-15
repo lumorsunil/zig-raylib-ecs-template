@@ -54,10 +54,11 @@ fn initAssets(self: *Game, options: InitAssetsOptions) void {
 }
 
 fn createSystems(self: *Game) void {
-    self.addSingleton(Game.S.Input.init());
-    self.addSingleton(Game.S.Physics.init());
+    self.addSingleton(Game.S.Animation.init());
+    self.addSingleton(Game.S.Camera.init());
     self.addSingleton(Game.S.Controllable.init());
     self.addSingleton(Game.S.DestroyEntities.init());
-    self.addSingleton(Game.S.Camera.init());
+    self.addSingleton(Game.S.Input.init());
+    self.addSingleton(Game.S.Physics.init());
     self.addSingleton(Game.S.RelativePosition.init());
 }

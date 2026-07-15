@@ -91,6 +91,14 @@ pub const Game = struct {
         return .init(320, 256);
     }
 
+    pub fn worldSize(self: @This()) Vector {
+        return self.pixelSize();
+    }
+
+    pub fn worldPos(_: @This()) Vector {
+        return .init(0, 0);
+    }
+
     pub fn addSingleton(self: *@This(), singleton: anytype) void {
         self.reg.singletons().add(singleton);
     }
@@ -260,11 +268,31 @@ pub const Game = struct {
         if (self.is_paused) return;
         const time_step = self.physicsTimeStep();
         const dt = self.deltaRealTime();
-        self.elapsed_time += @as(f32, @floatFromInt(self.physics_frames)) * time_step;
+        const f_last_physics_frames: f32 = @floatFromInt(self.physics_frames);
+        self.elapsed_time += f_last_physics_frames * time_step;
         const f_physics_frames: f32 = @divFloor(dt + self.rem_time, time_step);
         const physics_delta_time = f_physics_frames * time_step;
         self.physics_frames = @intFromFloat(f_physics_frames);
         self.rem_time -= physics_delta_time - dt;
         self.delta_time = physics_delta_time;
+    }
+
+    pub fn addAnimationAndRenderable(
+        _: *@This(),
+        ctx: EntityContext,
+        animation: Game.C.Animation,
+    ) void {
+        ctx.add(animation);
+        ctx.add(animation.getFrame());
+    }
+
+    /// Takes a world coord and returns a vector from [0,0] to [1,1]
+    pub fn getRelativePosition(self: *@This(), abs_pos: Game.Vector) Game.Vector {
+        return abs_pos.subtract(self.worldPos()).divide(self.worldSize());
+    }
+
+    /// Takes a vector from [0,0] to [1,1] and returns a world coord
+    pub fn getAbsolutePos(self: *@This(), rel_pos: Game.Vector) Game.Vector {
+        return rel_pos.multiply(self.worldSize()).add(self.worldPos());
     }
 };

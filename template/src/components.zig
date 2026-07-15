@@ -1,3 +1,4 @@
+pub const Animation = @import("components/animation.zig").Animation;
 pub const Body = @import("components/body.zig").Body;
 pub const Controllable = @import("components/controllable.zig").Controllable;
 pub const DestroyAt = @import("components/destroy-at.zig").DestroyAt;

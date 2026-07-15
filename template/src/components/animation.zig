@@ -6,7 +6,7 @@ pub const Animation = struct {
     next_frame_at: f64 = 0,
     current_frame: usize = 0,
     paused_at: f64 = 0,
-    is_playing: bool = false,
+    is_playing: bool = true,
 
     pub fn init(animation: AnimationFrames, is_looping: bool) @This() {
         return .{ .animation = animation, .is_looping = is_looping };
@@ -29,7 +29,40 @@ pub const Animation = struct {
     }
 
     pub fn getFrame(self: @This()) Game.C.Renderable {
-        return self.animation.frames[self.current_frame];
+        const i = @min(self.current_frame, self.animation.frames.len - 1);
+        return self.animation.frames[i].renderable;
+    }
+
+    pub fn isDone(self: @This()) bool {
+        return !self.is_looping and self.current_frame >= self.animation.frames.len;
+    }
+
+    pub const AnimationUpdateEvent = enum { next_frame, looped, none };
+
+    pub fn update(self: *@This(), t: f64) AnimationUpdateEvent {
+        if (!self.is_playing) return .none;
+
+        var event: AnimationUpdateEvent = .none;
+
+        if (self.next_frame_at <= t) {
+            event = .next_frame;
+
+            self.current_frame += 1;
+
+            if (self.is_looping) {
+                self.current_frame %= self.animation.frames.len;
+
+                if (self.current_frame == 0) {
+                    event = .looped;
+                }
+            }
+
+            if (!self.isDone()) {
+                self.next_frame_at = t + self.animation.frame_duration * self.animation.frames[self.current_frame].duration_factor;
+            }
+        }
+
+        return event;
     }
 
     pub const AnimationFrames = struct {

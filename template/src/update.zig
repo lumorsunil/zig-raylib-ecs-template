@@ -8,5 +8,7 @@ pub fn update(self: *Game) void {
     const relative_position = self.getSingleton(Game.S.RelativePosition);
     relative_position.update(self);
     self.cameraSystem().update(self);
+    const animation = self.getSingleton(Game.S.Animation);
+    animation.update(self);
     self.destroyEntitiesSystem().update(self);
 }

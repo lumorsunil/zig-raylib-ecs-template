@@ -4,6 +4,8 @@ const rl = @import("raylib");
 
 pub const Renderable = union(enum) {
     rectangle: Rectangle,
+    circle: Circle,
+    triangle: Triangle,
     sprite: Sprite,
     polygon: Polygon,
 
@@ -21,6 +23,19 @@ pub const Renderable = union(enum) {
 
     pub fn initRectangle(rec_size: Game.Vector, color: Game.Color) @This() {
         return .{ .rectangle = .{ .rec_size = rec_size, .color = color } };
+    }
+
+    pub fn initCircle(radius: f32, color: Game.Color) @This() {
+        return .{ .circle = .{ .radius = radius, .color = color } };
+    }
+
+    pub fn initTriangle(
+        v1: Game.Vector,
+        v2: Game.Vector,
+        v3: Game.Vector,
+        color: Game.Color,
+    ) @This() {
+        return .{ .triangle = .{ .v1 = v1, .v2 = v2, .v3 = v3, .color = color } };
     }
 
     pub fn initSprite(texture: rl.Texture2D, source: rl.Rectangle) @This() {
@@ -46,6 +61,46 @@ pub const Renderable = union(enum) {
 
         pub fn size(self: Rectangle, _: f32) Game.Vector {
             return self.rec_size;
+        }
+    };
+
+    pub const Circle = struct {
+        radius: f32,
+        color: Game.Color,
+
+        pub fn draw(self: Circle, position: Game.Vector, _: f32) void {
+            rl.drawCircleV(position, self.radius, self.color);
+        }
+
+        pub fn size(self: Circle, _: f32) Game.Vector {
+            return .init(self.radius, self.radius);
+        }
+    };
+
+    pub const Triangle = struct {
+        v1: Game.Vector,
+        v2: Game.Vector,
+        v3: Game.Vector,
+        color: Game.Color,
+
+        pub fn draw(self: Triangle, position: Game.Vector, rotation: f32) void {
+            const v1 = self.v1.rotate(rotation).add(position);
+            const v2 = self.v2.rotate(rotation).add(position);
+            const v3 = self.v3.rotate(rotation).add(position);
+            rl.drawTriangle(v1, v2, v3, self.color);
+        }
+
+        pub fn size(self: Triangle, rotation: f32) Game.Vector {
+            const v1 = self.v1.rotate(rotation);
+            const v2 = self.v2.rotate(rotation);
+            const v3 = self.v3.rotate(rotation);
+
+            const min_x = @min(v1.x, v2.x, v3.x);
+            const max_x = @max(v1.x, v2.x, v3.x);
+            const min_y = @min(v1.y, v2.y, v3.y);
+            const max_y = @max(v1.y, v2.y, v3.y);
+
+            return .init(max_x - min_x, max_y - min_y);
         }
     };
 

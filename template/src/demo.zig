@@ -3,6 +3,7 @@ const Game = @import("game.zig").Game;
 pub fn createDemo(game: *Game) !void {
     try createDefaultGrid(game);
     createPlayer(game);
+    try createAnimatedSineThing(game);
 }
 
 fn createPlayer(game: *Game) void {
@@ -10,6 +11,34 @@ fn createPlayer(game: *Game) void {
     player.add(Game.C.Renderable.initRectangle(.init(16, 16), .white));
     player.add(Game.C.Body.init(.init(150, 128)));
     player.add(Game.C.Controllable.init());
+}
+
+fn createAnimatedSineThing(game: *Game) !void {
+    const frames = try game.allocator.alloc(Game.C.Animation.Frame, 6);
+    for (0..frames.len) |i| {
+        const color: Game.Color = switch (i) {
+            0 => .red,
+            1 => .blue,
+            2 => .yellow,
+            3 => .green,
+            4 => .purple,
+            5 => .pink,
+            else => unreachable,
+        };
+        const renderable: Game.C.Renderable = switch (i % 3) {
+            0 => .initRectangle(.init(10, 10), color),
+            1 => .initCircle(5, color),
+            2 => .initTriangle(.init(0, 0), .init(10, 10), .init(0, 10), color),
+            else => unreachable,
+        };
+        frames[i] = .init(renderable, 1);
+    }
+
+    @import("std").log.debug("{any}", .{frames});
+
+    const ctx = game.createEntity();
+    game.addAnimationAndRenderable(ctx, .init(.init(frames, 0.3), true));
+    ctx.add(Game.C.Body.init(game.getAbsolutePos(.init(0.8, 0.2))));
 }
 
 fn createDefaultGrid(self: *Game) !void {
