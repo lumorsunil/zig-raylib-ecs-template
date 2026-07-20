@@ -1,9 +1,11 @@
 const Game = @import("game.zig").Game;
+const rl = @import("raylib");
 
 pub fn createDemo(game: *Game) !void {
     try createDefaultGrid(game);
     createPlayer(game);
     try createAnimatedSineThing(game);
+    setupShader(game);
 }
 
 fn createPlayer(game: *Game) void {
@@ -28,13 +30,11 @@ fn createAnimatedSineThing(game: *Game) !void {
         const renderable: Game.C.Renderable = switch (i % 3) {
             0 => .initRectangle(.init(10, 10), color),
             1 => .initCircle(5, color),
-            2 => .initTriangle(.init(0, 0), .init(10, 10), .init(0, 10), color),
+            2 => .initTriangle(.init(0, 0), .init(0, 10), .init(10, 10), color),
             else => unreachable,
         };
         frames[i] = .init(renderable, 1);
     }
-
-    @import("std").log.debug("{any}", .{frames});
 
     const ctx = game.createEntity();
     game.addAnimationAndRenderable(ctx, .init(.init(frames, 0.3), true));
@@ -57,4 +57,17 @@ fn createDefaultGrid(self: *Game) !void {
     }
 
     self.physics().grid = grid;
+}
+
+fn setupShader(self: *Game) void {
+    const crt = self.assets().shaders.load(self.allocator, .crt) orelse return;
+    const render_width_loc = rl.getShaderLocation(crt.*, "renderWidth");
+    const render_height_loc = rl.getShaderLocation(crt.*, "renderHeight");
+    const center_loc = rl.getShaderLocation(crt.*, "center");
+    const screen_size = self.screenSize();
+    const center = [_]f32{ screen_size.x / 2, screen_size.y / 2 };
+
+    rl.setShaderValue(crt.*, render_width_loc, &screen_size.x, .float);
+    rl.setShaderValue(crt.*, render_height_loc, &screen_size.y, .float);
+    rl.setShaderValue(crt.*, center_loc, &center, .vec2);
 }

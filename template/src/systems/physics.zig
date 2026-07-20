@@ -11,6 +11,7 @@ pub const Axis = enum { x, y };
 pub fn Physics(comptime options: PhysicsOptions) type {
     return struct {
         enabled: bool = true,
+        gravity: Game.Vector = Game.Preset.gravity,
         grid: ?DefaultGrid = null,
 
         const grid_mod = @import("physics/grid.zig");
@@ -37,18 +38,25 @@ pub fn Physics(comptime options: PhysicsOptions) type {
                     const body = ctx.get(Game.C.Body);
                     if (!body.enabled) continue;
 
+                    body.is_on_ground = false;
+
+                    body.acceleration = body.acceleration.add(self.gravity);
                     body.velocity = body.velocity.add(body.acceleration.scale(time_step));
                     body.rotation += body.angular_velocity * time_step;
 
-                    if (comptime options.enable_separate_axis_update) {
-                        self.updateAxis(body, &.{.x}, time_step);
-                        if (self.grid) |*grid| grid.resolveCollisions(game, ctx, body, &.{.x});
-                        self.updateAxis(body, &.{.y}, time_step);
-                        if (self.grid) |*grid| grid.resolveCollisions(game, ctx, body, &.{.y});
-                    } else {
-                        self.updateAxis(body, &.{ .x, .y }, time_step);
-                        if (self.grid) |*grid| grid.resolveCollisions(game, ctx, body, &.{ .x, .y });
+                    const axiis_updates: []const []const Axis = if (comptime options.enable_separate_axis_update)
+                        &.{ &.{.x}, &.{.y} }
+                    else
+                        &.{&.{ .x, .y }};
+
+                    inline for (axiis_updates) |axiis| {
+                        self.updateAxis(body, axiis, time_step);
+                        if (self.grid) |*grid| {
+                            grid.resolveCollisions(game, ctx, body, onCollision, axiis);
+                        }
                     }
+
+                    applyDrag(body, time_step);
 
                     body.acceleration = .init(0, 0);
                 }
@@ -74,6 +82,26 @@ pub fn Physics(comptime options: PhysicsOptions) type {
                         }
                     },
                 }
+            }
+        }
+
+        fn applyDrag(body: *Game.C.Body, time_step: f32) void {
+            body.velocity.x -= body.velocity.x * body.air_drag_x * time_step;
+            body.velocity.y -= body.velocity.y * body.air_drag_y * time_step;
+        }
+
+        fn onCollision(
+            _: Game.EntityContext,
+            body: *Game.C.Body,
+            event: DefaultGrid.ResolveCollisionEvent,
+        ) void {
+            switch (event) {
+                .none => {},
+                .collision => |collision| {
+                    if (collision.axis == .y and collision.direction == 1) {
+                        body.is_on_ground = true;
+                    }
+                },
             }
         }
     };

@@ -3,19 +3,25 @@ const Game = @import("game.zig").Game;
 const rl = @import("raylib");
 
 pub fn setup(self: *Game) !void {
-    initRaylib(self);
+    try initRaylib(self);
 
     createCamera(self);
     initAssets(self, .load_all);
     createSystems(self);
     try @import("demo.zig").createDemo(self);
+
+    self.elapsed_time = self.elapsedRealTime();
 }
 
-fn initRaylib(self: *Game) void {
+fn initRaylib(self: *Game) !void {
     const screen_size = self.screenSize();
-    rl.initWindow(@intFromFloat(screen_size.x), @intFromFloat(screen_size.y), "Game Template");
+    const screen_x: i32 = @intFromFloat(screen_size.x);
+    const screen_y: i32 = @intFromFloat(screen_size.y);
+    rl.initWindow(screen_x, screen_y, "Game Template");
     rl.setWindowPosition(24, 48);
     rl.setTargetFPS(self.fps());
+    const render_texture = try rl.loadRenderTexture(screen_x, screen_y);
+    self.addSingleton(render_texture);
 }
 
 fn createCamera(self: *Game) void {
@@ -27,30 +33,8 @@ fn createCamera(self: *Game) void {
     });
 }
 
-const InitAssetsOptions = enum {
-    load_all,
-    init_only,
-};
-
-fn initAssets(self: *Game, options: InitAssetsOptions) void {
-    const textures, const sounds, const musics = brk: switch (options) {
-        .load_all => {
-            const textures = Game.Assets.loadAllTextures(self.allocator);
-            const sounds = Game.Assets.loadAllSounds(self.allocator);
-            const musics = Game.Assets.loadAllMusic(self.allocator);
-            break :brk .{ textures, sounds, musics };
-        },
-        .init_only => {
-            const textures = Game.Assets.Textures.empty;
-            const sounds = Game.Assets.Sounds.empty;
-            const musics = Game.Assets.Musics.empty;
-            break :brk .{ textures, sounds, musics };
-        },
-    };
-
-    self.addSingleton(textures);
-    self.addSingleton(sounds);
-    self.addSingleton(musics);
+fn initAssets(self: *Game, comptime options: Game.Assets.InitOptions) void {
+    self.addSingleton(Game.Assets.init(self.allocator, options));
 }
 
 fn createSystems(self: *Game) void {

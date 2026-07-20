@@ -1,6 +1,8 @@
 pub const Animation = @import("components/animation.zig").Animation;
 pub const Body = @import("components/body.zig").Body;
 pub const Controllable = @import("components/controllable.zig").Controllable;
+pub const ControllablePlatformer = @import("components/controllable/platformer.zig").ControllablePlatformer;
+pub const ControllableTopDown = @import("components/controllable/top-down.zig").ControllableTopDown;
 pub const DestroyAt = @import("components/destroy-at.zig").DestroyAt;
 pub const Hitbox = @import("components/hitbox.zig").Hitbox;
 pub const Invisible = @import("components/invisible.zig").Invisible;

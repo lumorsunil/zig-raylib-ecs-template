@@ -3,7 +3,10 @@ const Allocator = std.mem.Allocator;
 const comptimePrint = std.fmt.comptimePrint;
 const fmtJoin = std.fs.path.fmtJoin;
 const rl = @import("raylib");
-const Game = @import("game.zig").Game;
+
+fn comptimePathJoin(comptime paths: []const []const u8) [:0]const u8 {
+    return comptime comptimePrint("{f}", .{fmtJoin(paths)});
+}
 
 pub fn AssetContainerOptions(comptime K: type, comptime V: type) type {
     return struct {
@@ -25,6 +28,12 @@ pub fn AssetContainer(
 
         pub fn init() @This() {
             return .{};
+        }
+
+        pub fn loadAll(self: *@This(), allocator: Allocator) void {
+            inline for (std.meta.tags(K)) |tag| {
+                _ = self.load(allocator, tag);
+            }
         }
 
         pub fn keyToFilename(_: @This(), key: K) [:0]const u8 {
@@ -60,6 +69,11 @@ pub fn AssetContainer(
 }
 
 pub const Assets = struct {
+    textures: Textures = .empty,
+    sounds: Sounds = .empty,
+    musics: Musics = .empty,
+    shaders: Shaders = .empty,
+
     pub const TextureKey = enum {
         spritesheet,
     };
@@ -72,73 +86,110 @@ pub const Assets = struct {
         example,
     };
 
+    pub const ShaderKey = enum {
+        crt,
+    };
+
     pub const Textures = AssetContainer(TextureKey, rl.Texture2D, .{
         .keyToFilename = textureKeyToFilename,
         .load = rl.loadTexture,
         .unload = rl.unloadTexture,
     });
+
     pub const Sounds = AssetContainer(SoundKey, rl.Sound, .{
         .keyToFilename = soundKeyToFilename,
         .load = rl.loadSound,
         .unload = rl.unloadSound,
     });
+
     pub const Musics = AssetContainer(MusicKey, rl.Music, .{
         .keyToFilename = musicKeyToFilename,
         .load = rl.loadMusicStream,
         .unload = rl.unloadMusicStream,
     });
 
-    const resources_root = comptimePrint("{f}", .{fmtJoin(&.{ "src", "resources" })});
-
-    fn resourceFilename(comptime sub_path: []const u8) [:0]const u8 {
-        return comptimePrint("{f}", .{comptime fmtJoin(&.{ resources_root, sub_path })});
+    pub const Shaders = AssetContainer(ShaderKey, rl.Shader, .{
+        .keyToFilename = shaderKeyToFilename,
+        .load = loadShader,
+        .unload = rl.unloadShader,
+    });
+    pub const LoadShaderError = error{InvalidFilename};
+    fn loadShader(filenames: [:0]const u8) !rl.Shader {
+        const basename = std.fs.path.basename(filenames);
+        const dirname = std.fs.path.dirname(filenames) orelse ".";
+        var it = std.mem.splitScalar(u8, basename, ';');
+        var vs: ?[]const u8 = it.next() orelse return LoadShaderError.InvalidFilename;
+        if (vs.?.len == 0) vs = null;
+        var fs: ?[]const u8 = it.next() orelse return LoadShaderError.InvalidFilename;
+        if (fs.?.len == 0) fs = null;
+        var vs_buffer: [1024]u8 = undefined;
+        const vsz = if (vs) |s| try std.fmt.bufPrintZ(&vs_buffer, "{f}", .{fmtJoin(&.{ dirname, s })}) else null;
+        var fs_buffer: [1024]u8 = undefined;
+        const fsz = if (fs) |s| try std.fmt.bufPrintZ(&fs_buffer, "{f}", .{fmtJoin(&.{ dirname, s })}) else null;
+        return rl.loadShader(vsz, fsz);
     }
 
-    fn textureKeyToFilename(texture: Game.Assets.TextureKey) [:0]const u8 {
-        return switch (texture) {
+    const resources_root = comptimePathJoin(&.{ "src", "resources" });
+
+    fn resourceFilename(comptime sub_path: []const u8) [:0]const u8 {
+        return comptimePathJoin(&.{ resources_root, sub_path });
+    }
+
+    fn textureKeyToFilename(key: TextureKey) [:0]const u8 {
+        return switch (key) {
             .spritesheet => resourceFilename("spritesheet.png"),
         };
     }
 
-    fn soundKeyToFilename(sound: Game.Assets.SoundKey) [:0]const u8 {
-        return switch (sound) {
+    fn soundKeyToFilename(key: SoundKey) [:0]const u8 {
+        return switch (key) {
             .example => resourceFilename("example.wav"),
         };
     }
 
-    fn musicKeyToFilename(sound: Game.Assets.MusicKey) [:0]const u8 {
-        return switch (sound) {
+    fn musicKeyToFilename(key: MusicKey) [:0]const u8 {
+        return switch (key) {
             .example => resourceFilename("example.mp3"),
         };
     }
 
-    pub fn loadAllTextures(allocator: Allocator) Textures {
-        var textures: Textures = .empty;
-
-        inline for (std.enums.values(TextureKey)) |texture| {
-            _ = textures.load(allocator, texture);
-        }
-
-        return textures;
+    fn shaderKeyToFilename(key: ShaderKey) [:0]const u8 {
+        return switch (key) {
+            .crt => resourceFilename(";crt.fs"),
+        };
     }
 
-    pub fn loadAllSounds(allocator: Allocator) Sounds {
-        var sounds: Sounds = .empty;
+    pub const InitOptions = union(enum) {
+        load_all,
+        load_these: []const std.meta.FieldEnum(Assets),
+        empty,
+    };
 
-        inline for (std.enums.values(SoundKey)) |sound| {
-            _ = sounds.load(allocator, sound);
+    pub const empty = @This(){};
+
+    pub fn init(allocator: Allocator, comptime options: InitOptions) @This() {
+        var self: @This() = .empty;
+
+        switch (options) {
+            .load_all => self.loadAll(allocator),
+            .load_these => |these| self.loadThese(allocator, these),
+            .empty => {},
         }
 
-        return sounds;
+        return self;
     }
 
-    pub fn loadAllMusic(allocator: Allocator) Musics {
-        var musics: Musics = .empty;
+    pub fn loadAll(self: *@This(), allocator: Allocator) void {
+        self.loadThese(allocator, std.meta.tags(std.meta.FieldEnum(@This())));
+    }
 
-        inline for (std.enums.values(MusicKey)) |music| {
-            _ = musics.load(allocator, music);
+    pub fn loadThese(
+        self: *@This(),
+        allocator: Allocator,
+        comptime fields: []const std.meta.FieldEnum(@This()),
+    ) void {
+        inline for (fields) |tag| {
+            @field(self, @tagName(tag)).loadAll(allocator);
         }
-
-        return musics;
     }
 };

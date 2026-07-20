@@ -5,6 +5,9 @@ const rl = @import("raylib");
 const enable_debug_draw = true;
 
 pub fn draw(self: *Game) void {
+    const render_texture = self.getSingleton(rl.RenderTexture2D).*;
+    rl.beginTextureMode(render_texture);
+
     rl.clearBackground(.black);
     self.camera().begin();
     drawGrid(self);
@@ -18,6 +21,24 @@ pub fn draw(self: *Game) void {
     ui_camera.begin();
     debugDrawUI(self);
     ui_camera.end();
+
+    rl.endTextureMode();
+
+    rl.beginDrawing();
+
+    self.beginShaderMode(.crt);
+
+    const screen_size = self.screenSize();
+    rl.drawTextureRec(
+        render_texture.texture,
+        .init(0, 0, screen_size.x, -screen_size.y),
+        .init(0, 0),
+        .white,
+    );
+
+    self.endShaderMode();
+
+    rl.endDrawing();
 }
 
 fn debugDrawUI(self: *Game) void {

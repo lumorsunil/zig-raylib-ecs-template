@@ -126,11 +126,28 @@ pub fn Grid(comptime Cell: type, comptime options: GridOptions(Cell)) type {
             }
         }
 
+        fn setVectorComponent(v: *Game.Vector, value: f32, comptime axis: Axis) void {
+            switch (comptime axis) {
+                .x => v.x = value,
+                .y => v.y = value,
+            }
+        }
+
+        pub const ResolveCollisionEvent = union(enum) {
+            none,
+            collision: struct {
+                depth: f32,
+                direction: f32,
+                axis: Axis,
+            },
+        };
+
         pub fn resolveCollisions(
             self: *@This(),
             game: *Game,
             ctx: Game.EntityContext,
             body: *Game.C.Body,
+            callback: *const fn (Game.EntityContext, *Game.C.Body, ResolveCollisionEvent) void,
             comptime axiis: []const Axis,
         ) void {
             const hitbox = game.hitbox(ctx);
@@ -143,7 +160,10 @@ pub fn Grid(comptime Cell: type, comptime options: GridOptions(Cell)) type {
                 for (candidates.min_y..candidates.max_y) |y| {
                     if (!self.isSolid(game, x, y)) continue;
 
-                    const cell_pos = Game.Vector.init(@floatFromInt(x), @floatFromInt(y)).multiply(cell_size);
+                    const cell_pos = Game.Vector.init(
+                        @floatFromInt(x),
+                        @floatFromInt(y),
+                    ).multiply(cell_size);
 
                     inline for (comptime axiis) |axis| {
                         const body_min = getRecPos(hitbox.hitbox, axis);
@@ -156,12 +176,15 @@ pub fn Grid(comptime Cell: type, comptime options: GridOptions(Cell)) type {
 
                         const correction = if (@abs(d_min) < @abs(d_max)) -d_min else d_max;
 
-                        std.log.debug("hitbox: {f}", .{hitbox});
-                        std.log.debug("candidates: {f}", .{candidates});
-                        std.log.debug("correction ({t}): {}", .{ axis, correction });
-
                         addToVectorComponent(&body.position, correction, axis);
                         roundVectorComponent(&body.position, axis);
+                        setVectorComponent(&body.velocity, 0, axis);
+
+                        callback(ctx, body, .{ .collision = .{
+                            .depth = @abs(correction),
+                            .direction = -std.math.sign(correction),
+                            .axis = axis,
+                        } });
                     }
 
                     return;

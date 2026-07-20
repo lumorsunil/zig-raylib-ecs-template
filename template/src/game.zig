@@ -12,6 +12,10 @@ pub const Game = struct {
     physics_frames: usize = 0,
     rem_time: f32 = 0,
     is_paused: bool = false,
+    music: ?rl.Music = null,
+
+    pub const max_physics_frames = 1;
+    pub const Preset = @import("preset.zig").Preset;
 
     pub const Assets = @import("assets.zig").Assets;
 
@@ -41,9 +45,7 @@ pub const Game = struct {
     pub fn run(self: *@This()) void {
         while (!rl.windowShouldClose()) {
             self.update();
-            rl.beginDrawing();
             self.draw();
-            rl.endDrawing();
         }
     }
 
@@ -115,6 +117,7 @@ pub const Game = struct {
         }.get;
     }
 
+    pub const assets = singletonFn(Assets);
     pub const camera = singletonFn(Camera);
     pub const cameraSystem = singletonFn(Game.S.Camera);
     pub const input = singletonFn(Game.S.Input);
@@ -267,11 +270,14 @@ pub const Game = struct {
     pub fn updateTime(self: *@This()) void {
         if (self.is_paused) return;
         const time_step = self.physicsTimeStep();
-        const dt = self.deltaRealTime();
+        var dt = self.deltaRealTime();
         const f_last_physics_frames: f32 = @floatFromInt(self.physics_frames);
         self.elapsed_time += f_last_physics_frames * time_step;
-        const f_physics_frames: f32 = @divFloor(dt + self.rem_time, time_step);
+        const f_desired_physics_frames: f32 = @divFloor(dt + self.rem_time, time_step);
+        const f_physics_frames: f32 = @min(max_physics_frames, f_desired_physics_frames);
         const physics_delta_time = f_physics_frames * time_step;
+        const f_desired_delta = f_desired_physics_frames - f_physics_frames;
+        dt -= f_desired_delta * time_step;
         self.physics_frames = @intFromFloat(f_physics_frames);
         self.rem_time -= physics_delta_time - dt;
         self.delta_time = physics_delta_time;
@@ -294,5 +300,29 @@ pub const Game = struct {
     /// Takes a vector from [0,0] to [1,1] and returns a world coord
     pub fn getAbsolutePos(self: *@This(), rel_pos: Game.Vector) Game.Vector {
         return rel_pos.multiply(self.worldSize()).add(self.worldPos());
+    }
+
+    pub fn getTexture(self: *@This(), key: Assets.TextureKey) ?Texture {
+        return self.assets().textures.load(self.allocator, key);
+    }
+
+    pub fn playSound(self: *@This(), key: Assets.SoundKey) void {
+        const sound = self.assets().sounds.load(self.allocator, key) orelse return;
+        rl.playSound(sound.*);
+    }
+
+    pub fn playMusic(self: *@This(), key: Assets.MusicKey) void {
+        const music = self.assets().musics.load(self.allocator, key) orelse return;
+        rl.playMusicStream(music.*);
+        self.music = music.*;
+    }
+
+    pub fn beginShaderMode(self: *@This(), key: Assets.ShaderKey) void {
+        const shader = self.assets().shaders.load(self.allocator, key) orelse return;
+        rl.beginShaderMode(shader.*);
+    }
+
+    pub fn endShaderMode(_: *@This()) void {
+        rl.endShaderMode();
     }
 };
