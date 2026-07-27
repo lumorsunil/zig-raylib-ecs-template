@@ -1,0 +1,4 @@
+runic "build-web.rn"
+const name = basename "${pwd}" | tr "-d" " \n"
+rm "${name}.zip" 2>"/dev/null"
+$(cd "zig-out/web" && zip "-r" "../../${name}.zip" ".")

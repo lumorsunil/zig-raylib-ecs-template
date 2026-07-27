@@ -6,5 +6,6 @@ pub const ControllableTopDown = @import("components/controllable/top-down.zig").
 pub const DestroyAt = @import("components/destroy-at.zig").DestroyAt;
 pub const Hitbox = @import("components/hitbox.zig").Hitbox;
 pub const Invisible = @import("components/invisible.zig").Invisible;
+pub const PrepareShader = @import("components/prepare-shader.zig").PrepareShader;
 pub const RelativePosition = @import("components/relative-position.zig").RelativePosition;
 pub const Renderable = @import("components/renderable.zig").Renderable;

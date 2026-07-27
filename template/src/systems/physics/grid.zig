@@ -1,7 +1,7 @@
 const std = @import("std");
 const Game = @import("../../game.zig").Game;
-const Axis = @import("../physics.zig").Axis;
 const rl = @import("raylib");
+const Axis = Game.S.Physics.Axis;
 
 pub fn GridOptions(comptime Cell: type) type {
     return struct {
@@ -176,9 +176,9 @@ pub fn Grid(comptime Cell: type, comptime options: GridOptions(Cell)) type {
 
                         const correction = if (@abs(d_min) < @abs(d_max)) -d_min else d_max;
 
-                        addToVectorComponent(&body.position, correction, axis);
-                        roundVectorComponent(&body.position, axis);
-                        setVectorComponent(&body.velocity, 0, axis);
+                        body.applyToComponent(.position(.from(axis)), .add(correction));
+                        body.applyToComponent(.position(.from(axis)), .round);
+                        body.applyToComponent(.velocity(.from(axis)), .set(0));
 
                         callback(ctx, body, .{ .collision = .{
                             .depth = @abs(correction),

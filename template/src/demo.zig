@@ -11,8 +11,9 @@ pub fn createDemo(game: *Game) !void {
 fn createPlayer(game: *Game) void {
     const player = game.createEntity();
     player.add(Game.C.Renderable.initRectangle(.init(16, 16), .white));
-    player.add(Game.C.Body.init(.init(150, 128)));
+    _ = player.addBody(.init(150, 128), .init(16, 16));
     player.add(Game.C.Controllable.init());
+    player.add(Game.Assets.ShaderKey.sobel);
 }
 
 fn createAnimatedSineThing(game: *Game) !void {
@@ -38,7 +39,7 @@ fn createAnimatedSineThing(game: *Game) !void {
 
     const ctx = game.createEntity();
     game.addAnimationAndRenderable(ctx, .init(.init(frames, 0.3), true));
-    ctx.add(Game.C.Body.init(game.getAbsolutePos(.init(0.8, 0.2))));
+    _ = ctx.addBody(game.getAbsolutePos(.init(0.8, 0.2)), .init(10, 10));
 }
 
 fn createDefaultGrid(self: *Game) !void {
@@ -60,14 +61,22 @@ fn createDefaultGrid(self: *Game) !void {
 }
 
 fn setupShader(self: *Game) void {
-    const crt = self.assets().shaders.load(self.allocator, .crt) orelse return;
-    const render_width_loc = rl.getShaderLocation(crt.*, "renderWidth");
-    const render_height_loc = rl.getShaderLocation(crt.*, "renderHeight");
-    const center_loc = rl.getShaderLocation(crt.*, "center");
-    const screen_size = self.screenSize();
-    const center = [_]f32{ screen_size.x / 2, screen_size.y / 2 };
+    setupCrtShader(self);
+    // setupGodRaysShader(self);
+}
 
-    rl.setShaderValue(crt.*, render_width_loc, &screen_size.x, .float);
-    rl.setShaderValue(crt.*, render_height_loc, &screen_size.y, .float);
-    rl.setShaderValue(crt.*, center_loc, &center, .vec2);
+fn setupCrtShader(self: *Game) void {
+    const screen_size = self.screenSize();
+    self.setShaderValue(.crt, "renderWidth", screen_size.x);
+    self.setShaderValue(.crt, "renderHeight", screen_size.y);
+    self.setShaderValue(.crt, "scanlineThick", 3.0);
+    self.setShaderValue(.crt, "scanlineIntensity", 0.5);
+    self.setShaderValue(.crt, "distortX", 0.03);
+    self.setShaderValue(.crt, "distortY", 0.06);
+}
+
+fn setupGodRaysShader(self: *Game) void {
+    const screen_size = self.screenSize();
+    self.setShaderValue(.god_rays, "renderWidth", screen_size.x);
+    self.setShaderValue(.god_rays, "renderHeight", screen_size.y);
 }

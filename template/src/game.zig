@@ -1,6 +1,7 @@
 const std = @import("std");
 const ecs = @import("ecs");
 const rl = @import("raylib");
+const emscripten = std.os.emscripten;
 
 pub const Game = struct {
     io: std.Io,
@@ -13,9 +14,47 @@ pub const Game = struct {
     rem_time: f32 = 0,
     is_paused: bool = false,
     music: ?rl.Music = null,
+    mode: Mode = .normal,
+    screen_state: ScreenState = .menu,
+    wants_to_quit: bool = false,
 
     pub const max_physics_frames = 1;
     pub const Preset = @import("preset.zig").Preset;
+
+    const Mode = enum { normal, debug };
+
+    pub const ScreenState = union(enum) {
+        menu,
+        gameplay,
+        game_over,
+        ending,
+    };
+
+    pub const ztracy = @import("ztracy");
+
+    pub const ZoneCtx = struct {
+        ctx: ztracy.ZoneCtx,
+
+        pub fn init(ctx: ztracy.ZoneCtx) @This() {
+            return .{ .ctx = ctx };
+        }
+
+        pub fn end(self: @This()) void {
+            self.ctx.End();
+        }
+    };
+
+    pub fn tracyZoneN(comptime src: std.builtin.SourceLocation, label: [*:0]const u8) ZoneCtx {
+        return .init(ztracy.ZoneN(src, label));
+    }
+
+    pub fn tracyZoneNC(
+        comptime src: std.builtin.SourceLocation,
+        label: [*:0]const u8,
+        color: Color,
+    ) ZoneCtx {
+        return .init(ztracy.ZoneNC(src, label, @bitCast(color.toInt())));
+    }
 
     pub const Assets = @import("assets.zig").Assets;
 
@@ -23,6 +62,10 @@ pub const Game = struct {
     pub const Vector = rl.Vector2;
     pub const Color = rl.Color;
     pub const Texture = rl.Texture2D;
+    pub const Sound = rl.Sound;
+    pub const Music = rl.Music;
+    pub const Shader = rl.Shader;
+    pub const RenderBuffer = @import("render-buffer.zig").RenderBuffer;
 
     pub const C = @import("components.zig");
     pub const S = @import("systems.zig");
@@ -39,14 +82,28 @@ pub const Game = struct {
     pub fn deinit(self: *@This()) void {
         self.physics().deinit(self.allocator);
         self.reg.deinit();
+        rl.closeAudioDevice();
         rl.closeWindow();
     }
 
+    var emscripten_game_ptr: *Game = undefined;
+
     pub fn run(self: *@This()) void {
-        while (!rl.windowShouldClose()) {
-            self.update();
-            self.draw();
+        if (@import("builtin").cpu.arch.isWasm()) {
+            emscripten_game_ptr = self;
+            emscripten.emscripten_set_main_loop(emscripten_loop, 0, 1);
+        } else {
+            while (!rl.windowShouldClose() and !self.wants_to_quit) self.loop();
         }
+    }
+
+    fn emscripten_loop() callconv(.c) void {
+        loop(emscripten_game_ptr);
+    }
+
+    fn loop(self: *@This()) void {
+        self.update();
+        self.draw();
     }
 
     pub const setup = @import("setup.zig").setup;
@@ -144,6 +201,17 @@ pub const Game = struct {
         return it.next();
     }
 
+    pub fn getOneByTagComponent(self: *@This(), comptime T: type) *T {
+        var it = self.entityIterator(.{T}, .{});
+        return it.next().?.get(T);
+    }
+
+    pub fn tryGetOneByTagComponent(self: *@This(), comptime T: type) ?*T {
+        var it = self.entityIterator(.{T}, .{});
+        const ctx = it.next() orelse return null;
+        return ctx.tryGet(T);
+    }
+
     pub const EntityContext = struct {
         game: *Game,
         entity: ecs.Entity,
@@ -197,6 +265,12 @@ pub const Game = struct {
         pub fn valid(self: EntityContext) bool {
             return self.game.reg.valid(self.entity);
         }
+
+        pub fn addBody(self: @This(), position: Vector, size: Vector) *Game.C.Body {
+            const body = Game.C.Body.init(self, position, size);
+            self.add(body);
+            return self.get(Game.C.Body);
+        }
     };
 
     fn EntityIterator(comptime includes: anytype, comptime excludes: anytype) type {
@@ -241,22 +315,23 @@ pub const Game = struct {
         return .init(self, self.reg.view(includes, excludes));
     }
 
+    pub fn forEach(
+        self: *@This(),
+        callback: fn (EntityContext) void,
+        comptime includes: anytype,
+        comptime excludes: anytype,
+    ) void {
+        var it = self.entityIterator(includes, excludes);
+        while (it.next()) |ctx| callback(ctx);
+    }
+
     pub fn random(self: *@This()) std.Random {
         return self.random_io.interface();
     }
 
     pub fn hitbox(_: *@This(), ctx: EntityContext) Game.C.Hitbox {
         const body = ctx.get(Game.C.Body);
-        var hitbox_component = ctx.tryGetConst(Game.C.Hitbox) orelse {
-            const renderable = ctx.get(Game.C.Renderable);
-            const size = renderable.size(body.rotation);
-
-            return .init(body.position, size);
-        };
-
-        hitbox_component.setPosition(body.position.add(hitbox_component.position()));
-
-        return hitbox_component;
+        return .init(body.position(), body.size());
     }
 
     pub fn pauseTime(self: *@This()) void {
@@ -303,26 +378,96 @@ pub const Game = struct {
     }
 
     pub fn getTexture(self: *@This(), key: Assets.TextureKey) ?Texture {
-        return self.assets().textures.load(self.allocator, key);
+        const texture = self.assets().textures.load(.init(self), key) orelse return null;
+        return texture.*;
+    }
+
+    pub fn getSound(self: *@This(), key: Assets.SoundKey) ?Sound {
+        const sound = self.assets().sounds.load(.init(self), key) orelse return null;
+        return sound.*;
+    }
+
+    pub fn getMusic(self: *@This(), key: Assets.MusicKey) ?Music {
+        const music = self.assets().musics.load(.init(self), key) orelse return null;
+        return music.*;
+    }
+
+    pub fn getShader(self: *@This(), key: Assets.ShaderKey) ?Shader {
+        const shader = self.assets().shaders.load(.init(self), key) orelse return null;
+        return shader.*;
     }
 
     pub fn playSound(self: *@This(), key: Assets.SoundKey) void {
-        const sound = self.assets().sounds.load(self.allocator, key) orelse return;
-        rl.playSound(sound.*);
+        const sound = self.getSound(key) orelse return;
+        rl.playSound(sound);
+    }
+
+    pub fn isSoundPlaying(self: *@This(), key: Assets.SoundKey) bool {
+        const sound = self.getSound(key) orelse return false;
+        return rl.isSoundPlaying(sound);
+    }
+
+    pub fn setSoundPitch(self: *@This(), key: Assets.SoundKey, pitch: f32) void {
+        const sound = self.getSound(key) orelse return;
+        rl.setSoundPitch(sound, pitch);
+    }
+
+    pub fn setSoundVolume(self: *@This(), key: Assets.SoundKey, volume: f32) void {
+        const sound = self.getSound(key) orelse return;
+        rl.setSoundVolume(sound, volume);
     }
 
     pub fn playMusic(self: *@This(), key: Assets.MusicKey) void {
-        const music = self.assets().musics.load(self.allocator, key) orelse return;
-        rl.playMusicStream(music.*);
-        self.music = music.*;
+        const music = self.getMusic(key) orelse return;
+        rl.playMusicStream(music);
+        self.music = music;
     }
 
     pub fn beginShaderMode(self: *@This(), key: Assets.ShaderKey) void {
-        const shader = self.assets().shaders.load(self.allocator, key) orelse return;
-        rl.beginShaderMode(shader.*);
+        const shader = self.getShader(key) orelse return;
+        rl.beginShaderMode(shader);
     }
 
     pub fn endShaderMode(_: *@This()) void {
         rl.endShaderMode();
+    }
+
+    pub fn setShaderValue(
+        self: *@This(),
+        key: Assets.ShaderKey,
+        identifier: [:0]const u8,
+        value: anytype,
+    ) void {
+        const shader = self.getShader(key) orelse return;
+        const loc = rl.getShaderLocation(shader, identifier);
+        const T = @TypeOf(value);
+
+        if (T == usize) {
+            rl.setShaderValue(shader, loc, &value, .int);
+        } else if (T == f32 or T == comptime_float or T == f64 or T == comptime_int) {
+            const float_value: f32 = value;
+            rl.setShaderValue(shader, loc, &float_value, .float);
+        } else if (T == Vector) {
+            rl.setShaderValue(shader, loc, &.{ value.x, value.y }, .vec2);
+        } else if (T == rl.Vector3) {
+            rl.setShaderValue(shader, loc, &.{ value.x, value.y, value.z }, .vec3);
+        } else if (T == rl.Vector4) {
+            rl.setShaderValue(shader, loc, &.{ value.x, value.y, value.z, value.w }, .vec4);
+        } else if (T == Color) {
+            rl.setShaderValue(shader, loc, &.{ value.r, value.g, value.b, value.a }, .vec4);
+        } else if (T == bool) {
+            rl.setShaderValue(shader, loc, &@intFromBool(value), .int);
+        } else if (T == Texture) {
+            rl.setShaderValueTexture(shader, loc, value);
+        } else if (@typeInfo(T) == .array) {
+            const uniform_type = switch (@typeInfo(T).array.len) {
+                1 => .float,
+                2 => .vec2,
+                3 => .vec3,
+                4 => .vec4,
+                else => unreachable,
+            };
+            rl.setShaderValue(shader, loc, &value, uniform_type);
+        }
     }
 };

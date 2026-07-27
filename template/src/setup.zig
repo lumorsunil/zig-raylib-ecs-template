@@ -20,8 +20,10 @@ fn initRaylib(self: *Game) !void {
     rl.initWindow(screen_x, screen_y, "Game Template");
     rl.setWindowPosition(24, 48);
     rl.setTargetFPS(self.fps());
-    const render_texture = try rl.loadRenderTexture(screen_x, screen_y);
-    self.addSingleton(render_texture);
+    rl.initAudioDevice();
+    rl.setMasterVolume(0.3);
+    const render_buffer = try Game.RenderBuffer.init(screen_size);
+    self.addSingleton(render_buffer);
 }
 
 fn createCamera(self: *Game) void {
@@ -34,7 +36,7 @@ fn createCamera(self: *Game) void {
 }
 
 fn initAssets(self: *Game, comptime options: Game.Assets.InitOptions) void {
-    self.addSingleton(Game.Assets.init(self.allocator, options));
+    self.addSingleton(Game.Assets.init(.init(self), options));
 }
 
 fn createSystems(self: *Game) void {
@@ -43,6 +45,6 @@ fn createSystems(self: *Game) void {
     self.addSingleton(Game.S.Controllable.init());
     self.addSingleton(Game.S.DestroyEntities.init());
     self.addSingleton(Game.S.Input.init());
-    self.addSingleton(Game.S.Physics.init());
+    self.addSingleton(Game.S.Physics.init(self.allocator));
     self.addSingleton(Game.S.RelativePosition.init());
 }

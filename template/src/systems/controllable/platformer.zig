@@ -15,20 +15,17 @@ pub const ControllablePlatformer = struct {
         while (it.next()) |ctx| {
             const body = ctx.get(Game.C.Body);
             const controllable = ctx.get(Game.C.Controllable);
+            if (!controllable.enabled) continue;
 
             defer controllable.last_is_on_ground = body.is_on_ground;
 
             if (input.isDown(.move_right)) {
-                body.velocity.x += controllable.speed;
-            }
-            if (input.isDown(.move_up)) {
-                body.velocity.y -= controllable.speed;
+                body.applyToComponent(.velocity(.x), .add(controllable.speed));
+                controllable.horizontal_direction = .right;
             }
             if (input.isDown(.move_left)) {
-                body.velocity.x -= controllable.speed;
-            }
-            if (input.isDown(.move_down)) {
-                body.velocity.y += controllable.speed;
+                body.applyToComponent(.velocity(.x), .subtract(controllable.speed));
+                controllable.horizontal_direction = .left;
             }
             if (input.isPressed(.jump)) {
                 controllable.jump_count += 1;
@@ -37,7 +34,7 @@ pub const ControllablePlatformer = struct {
                 controllable.in_air_reason = .none;
             }
             if (input.isDown(.jump) and controllable.canJump(body.*, t)) {
-                body.velocity.y = -controllable.jump_strength;
+                body.applyToComponent(.velocity(.y), .set(-controllable.jump_strength));
                 controllable.last_jump_count = controllable.jump_count;
                 controllable.coyote_time_ends_at = t - 1;
                 controllable.in_air_reason = .jump;

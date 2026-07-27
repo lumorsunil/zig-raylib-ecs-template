@@ -1,4 +1,5 @@
 const std = @import("std");
+const Game = @import("game.zig").Game;
 const Allocator = std.mem.Allocator;
 const comptimePrint = std.fmt.comptimePrint;
 const fmtJoin = std.fs.path.fmtJoin;
@@ -8,10 +9,19 @@ fn comptimePathJoin(comptime paths: []const []const u8) [:0]const u8 {
     return comptime comptimePrint("{f}", .{fmtJoin(paths)});
 }
 
+pub const LoadAssetContext = struct {
+    io: std.Io,
+    allocator: Allocator,
+
+    pub fn init(game: *Game) @This() {
+        return .{ .io = game.io, .allocator = game.allocator };
+    }
+};
+
 pub fn AssetContainerOptions(comptime K: type, comptime V: type) type {
     return struct {
         keyToFilename: *const fn (K) [:0]const u8,
-        load: *const fn ([:0]const u8) anyerror!V,
+        load: *const fn (LoadAssetContext, filename: [:0]const u8) anyerror!V,
         unload: *const fn (V) void,
     };
 }
@@ -30,9 +40,9 @@ pub fn AssetContainer(
             return .{};
         }
 
-        pub fn loadAll(self: *@This(), allocator: Allocator) void {
+        pub fn loadAll(self: *@This(), ctx: LoadAssetContext) void {
             inline for (std.meta.tags(K)) |tag| {
-                _ = self.load(allocator, tag);
+                _ = self.load(ctx, tag);
             }
         }
 
@@ -42,21 +52,21 @@ pub fn AssetContainer(
 
         pub fn load(
             self: *@This(),
-            allocator: Allocator,
+            ctx: LoadAssetContext,
             key: K,
         ) ?*V {
-            return self.load_aux(allocator, key) catch |err| {
+            return self.load_aux(ctx, key) catch |err| {
                 const filename = self.keyToFilename(key);
                 std.log.err("Could not load {s}: {}", .{ filename, err });
                 return null;
             };
         }
 
-        fn load_aux(self: *@This(), allocator: Allocator, key: K) !?*V {
+        fn load_aux(self: *@This(), ctx: LoadAssetContext, key: K) !?*V {
             if (self.map.getPtr(key)) |value| return value;
             const filename = self.keyToFilename(key);
-            const value: V = try options.load(filename);
-            try self.map.put(allocator, key, value);
+            const value: V = try options.load(ctx, filename);
+            try self.map.put(ctx.allocator, key, value);
             return self.map.getPtr(key);
         }
 
@@ -76,6 +86,7 @@ pub const Assets = struct {
 
     pub const TextureKey = enum {
         spritesheet,
+        bg,
     };
 
     pub const SoundKey = enum {
@@ -88,45 +99,90 @@ pub const Assets = struct {
 
     pub const ShaderKey = enum {
         crt,
+        god_rays,
+        sobel,
     };
 
-    pub const Textures = AssetContainer(TextureKey, rl.Texture2D, .{
+    pub const Textures = AssetContainer(TextureKey, Game.Texture, .{
         .keyToFilename = textureKeyToFilename,
-        .load = rl.loadTexture,
+        .load = loadTexture,
         .unload = rl.unloadTexture,
     });
+    fn loadTexture(_: LoadAssetContext, filename: [:0]const u8) !Game.Texture {
+        return rl.loadTexture(filename);
+    }
 
-    pub const Sounds = AssetContainer(SoundKey, rl.Sound, .{
+    pub const Sounds = AssetContainer(SoundKey, Game.Sound, .{
         .keyToFilename = soundKeyToFilename,
-        .load = rl.loadSound,
+        .load = loadSound,
         .unload = rl.unloadSound,
     });
+    fn loadSound(_: LoadAssetContext, filename: [:0]const u8) !Game.Sound {
+        return rl.loadSound(filename);
+    }
 
-    pub const Musics = AssetContainer(MusicKey, rl.Music, .{
+    pub const Musics = AssetContainer(MusicKey, Game.Music, .{
         .keyToFilename = musicKeyToFilename,
-        .load = rl.loadMusicStream,
+        .load = loadMusic,
         .unload = rl.unloadMusicStream,
     });
+    fn loadMusic(_: LoadAssetContext, filename: [:0]const u8) !Game.Music {
+        return rl.loadMusicStream(filename);
+    }
 
-    pub const Shaders = AssetContainer(ShaderKey, rl.Shader, .{
+    pub const Shaders = AssetContainer(ShaderKey, Game.Shader, .{
         .keyToFilename = shaderKeyToFilename,
         .load = loadShader,
         .unload = rl.unloadShader,
     });
     pub const LoadShaderError = error{InvalidFilename};
-    fn loadShader(filenames: [:0]const u8) !rl.Shader {
+    fn loadShader(ctx: LoadAssetContext, filenames: [:0]const u8) !Game.Shader {
         const basename = std.fs.path.basename(filenames);
         const dirname = std.fs.path.dirname(filenames) orelse ".";
         var it = std.mem.splitScalar(u8, basename, ';');
-        var vs: ?[]const u8 = it.next() orelse return LoadShaderError.InvalidFilename;
-        if (vs.?.len == 0) vs = null;
-        var fs: ?[]const u8 = it.next() orelse return LoadShaderError.InvalidFilename;
-        if (fs.?.len == 0) fs = null;
+        var vs_basename: ?[]const u8 = it.next() orelse return LoadShaderError.InvalidFilename;
+        if (vs_basename.?.len == 0) vs_basename = null;
+        var fs_basename: ?[]const u8 = it.next() orelse return LoadShaderError.InvalidFilename;
+        if (fs_basename.?.len == 0) fs_basename = null;
         var vs_buffer: [1024]u8 = undefined;
-        const vsz = if (vs) |s| try std.fmt.bufPrintZ(&vs_buffer, "{f}", .{fmtJoin(&.{ dirname, s })}) else null;
+        const vs = if (vs_basename) |bn| try std.fmt.bufPrint(&vs_buffer, "{f}", .{fmtJoin(&.{ dirname, bn })}) else null;
         var fs_buffer: [1024]u8 = undefined;
-        const fsz = if (fs) |s| try std.fmt.bufPrintZ(&fs_buffer, "{f}", .{fmtJoin(&.{ dirname, s })}) else null;
-        return rl.loadShader(vsz, fsz);
+        const fs = if (fs_basename) |bn| try std.fmt.bufPrint(&fs_buffer, "{f}", .{fmtJoin(&.{ dirname, bn })}) else null;
+
+        const vs_shader = if (vs) |filename| loadShaderFile(ctx, filename) catch |err| handleLoadShaderFileError(filename, err) else null;
+        const fs_shader = if (fs) |filename| loadShaderFile(ctx, filename) catch |err| handleLoadShaderFileError(filename, err) else null;
+
+        return rl.loadShaderFromMemory(vs_shader, fs_shader);
+    }
+
+    const shader_header = if (@import("builtin").cpu.arch.isWasm())
+        \\#version 300 es
+        \\
+        \\precision mediump float;
+        \\
+    else
+        \\#version 330
+        \\
+    ;
+
+    fn loadShaderFile(ctx: LoadAssetContext, filename: []const u8) ![:0]const u8 {
+        const io = ctx.io;
+        const allocator = ctx.allocator;
+        const file = try std.Io.Dir.cwd().openFile(io, filename, .{});
+        defer file.close(io);
+        var buffer: [1024]u8 = undefined;
+        var file_reader = file.reader(io, &buffer);
+        const reader = &file_reader.interface;
+        var allocating_writer = std.Io.Writer.Allocating.init(allocator);
+        const writer = &allocating_writer.writer;
+        try writer.writeAll(shader_header);
+        _ = try reader.streamRemaining(writer);
+        return allocating_writer.toOwnedSliceSentinel(0);
+    }
+
+    fn handleLoadShaderFileError(filename: []const u8, err: anyerror) ?[:0]const u8 {
+        std.log.err("Error loading shader file {s}: {t}", .{ filename, err });
+        return null;
     }
 
     const resources_root = comptimePathJoin(&.{ "src", "resources" });
@@ -138,6 +194,7 @@ pub const Assets = struct {
     fn textureKeyToFilename(key: TextureKey) [:0]const u8 {
         return switch (key) {
             .spritesheet => resourceFilename("spritesheet.png"),
+            .bg => resourceFilename("bg.png"),
         };
     }
 
@@ -156,6 +213,8 @@ pub const Assets = struct {
     fn shaderKeyToFilename(key: ShaderKey) [:0]const u8 {
         return switch (key) {
             .crt => resourceFilename(";crt.fs"),
+            .god_rays => resourceFilename(";god-rays.fs"),
+            .sobel => resourceFilename(";sobel.fs"),
         };
     }
 
@@ -167,29 +226,29 @@ pub const Assets = struct {
 
     pub const empty = @This(){};
 
-    pub fn init(allocator: Allocator, comptime options: InitOptions) @This() {
+    pub fn init(ctx: LoadAssetContext, comptime options: InitOptions) @This() {
         var self: @This() = .empty;
 
         switch (options) {
-            .load_all => self.loadAll(allocator),
-            .load_these => |these| self.loadThese(allocator, these),
+            .load_all => self.loadAll(ctx),
+            .load_these => |these| self.loadThese(ctx, these),
             .empty => {},
         }
 
         return self;
     }
 
-    pub fn loadAll(self: *@This(), allocator: Allocator) void {
-        self.loadThese(allocator, std.meta.tags(std.meta.FieldEnum(@This())));
+    pub fn loadAll(self: *@This(), ctx: LoadAssetContext) void {
+        self.loadThese(ctx, std.meta.tags(std.meta.FieldEnum(@This())));
     }
 
     pub fn loadThese(
         self: *@This(),
-        allocator: Allocator,
+        ctx: LoadAssetContext,
         comptime fields: []const std.meta.FieldEnum(@This()),
     ) void {
         inline for (fields) |tag| {
-            @field(self, @tagName(tag)).loadAll(allocator);
+            @field(self, @tagName(tag)).loadAll(ctx);
         }
     }
 };

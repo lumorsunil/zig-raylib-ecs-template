@@ -21,7 +21,9 @@ pub const DestroyEntities = struct {
 
         for (0..self.n_entities_to_destroy) |i| {
             const entity = self.entities_to_destroy[i];
-            game.reg.destroy(entity);
+            if (game.reg.valid(entity)) {
+                game.reg.destroy(entity);
+            }
         }
 
         self.n_entities_to_destroy = 0;

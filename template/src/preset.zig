@@ -26,4 +26,4 @@ const TopDown = struct {
     pub const air_drag_y = 5;
 };
 
-pub const Preset = TopDown;
+pub const Preset = Platformer;

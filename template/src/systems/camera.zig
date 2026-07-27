@@ -10,19 +10,18 @@ pub const Camera = struct {
     }
 
     pub fn update(self: *Camera, game: *Game) void {
-        var it = game.entityIterator(.{ Game.C.Controllable, Game.C.Body }, .{});
+        const controllable = game.getOneByTag(Game.C.Controllable);
+        const body = controllable.tryGetConst(Game.C.Body) orelse return;
+
         const camera = game.camera();
         const pixel_size = game.pixelSize();
+        const position = body.position();
 
-        while (it.next()) |ctx| {
-            const body = ctx.getConst(Game.C.Body);
-
-            if (self.follow_x) {
-                camera.target.x = body.position.x - pixel_size.x / 2;
-            }
-            if (self.follow_y) {
-                camera.target.y = body.position.y - pixel_size.y / 2;
-            }
+        if (self.follow_x) {
+            camera.target.x = position.x - pixel_size.x / 2;
+        }
+        if (self.follow_y) {
+            camera.target.y = position.y - pixel_size.y / 2;
         }
     }
 };

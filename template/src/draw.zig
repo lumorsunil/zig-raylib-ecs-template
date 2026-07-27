@@ -5,11 +5,12 @@ const rl = @import("raylib");
 const enable_debug_draw = true;
 
 pub fn draw(self: *Game) void {
-    const render_texture = self.getSingleton(rl.RenderTexture2D).*;
-    rl.beginTextureMode(render_texture);
+    const render_buffer = self.getSingleton(Game.RenderBuffer);
+    rl.beginTextureMode(render_buffer.render_texture_a);
 
     rl.clearBackground(.black);
     self.camera().begin();
+    drawBg(self);
     drawGrid(self);
     drawRenderables(self);
     self.camera().end();
@@ -24,13 +25,29 @@ pub fn draw(self: *Game) void {
 
     rl.endTextureMode();
 
+    const screen_size = self.screenSize();
+
+    // rl.beginTextureMode(render_buffer.render_texture_b);
+    //
+    // self.beginShaderMode(.god_rays);
+    //
+    // rl.drawTextureRec(
+    //     render_buffer.render_texture_a.texture,
+    //     .init(0, 0, screen_size.x, -screen_size.y),
+    //     .init(0, 0),
+    //     .white,
+    // );
+    //
+    // self.endShaderMode();
+    //
+    // rl.endTextureMode();
+
     rl.beginDrawing();
 
     self.beginShaderMode(.crt);
 
-    const screen_size = self.screenSize();
     rl.drawTextureRec(
-        render_texture.texture,
+        render_buffer.render_texture_a.texture,
         .init(0, 0, screen_size.x, -screen_size.y),
         .init(0, 0),
         .white,
@@ -48,9 +65,10 @@ fn debugDrawUI(self: *Game) void {
 
     while (it.next()) |ctx| {
         const body = ctx.getConst(Game.C.Body);
+        const position = body.position();
 
-        drawText("{}", .{body.position.x}, .init(8, 8 + 10));
-        drawText("{}", .{body.position.y}, .init(8, 8 + 20));
+        drawText("{}", .{position.x}, .init(8, 8 + 10));
+        drawText("{}", .{position.y}, .init(8, 8 + 20));
     }
 }
 
@@ -61,14 +79,42 @@ fn drawText(comptime fmt: []const u8, args: anytype, position: Game.Vector) void
 }
 
 fn drawRenderables(self: *Game) void {
-    var it = self.entityIterator(.{ Game.C.Renderable, Game.C.Body }, .{Game.C.Invisible});
+    self.forEach(
+        drawRenderable,
+        .{ Game.C.Renderable, Game.C.Body },
+        .{Game.C.Invisible},
+    );
+}
 
-    while (it.next()) |ctx| {
-        const body = ctx.get(Game.C.Body);
-        const renderable = ctx.get(Game.C.Renderable);
+fn drawRenderable(ctx: Game.EntityContext) void {
+    const body = ctx.get(Game.C.Body);
+    const renderable = ctx.get(Game.C.Renderable);
 
-        renderable.draw(body.position, body.rotation);
+    const has_shader = beginRenderableShader(ctx);
+
+    renderable.draw(body.position(), body.rotation());
+
+    if (has_shader) {
+        ctx.game.endShaderMode();
     }
+}
+
+fn beginRenderableShader(ctx: Game.EntityContext) bool {
+    if (ctx.tryGetConst(Game.Assets.ShaderKey)) |shader| {
+        ctx.game.beginShaderMode(shader);
+        if (ctx.tryGet(Game.C.PrepareShader)) |prepare_shader| {
+            prepare_shader.prepare(ctx, shader);
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+fn drawBg(self: *Game) void {
+    const texture = self.getTexture(.bg) orelse return;
+    rl.drawTextureV(texture, .init(0, 0), .white);
 }
 
 fn drawGrid(self: *Game) void {

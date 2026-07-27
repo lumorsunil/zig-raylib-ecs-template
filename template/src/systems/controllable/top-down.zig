@@ -15,6 +15,8 @@ pub const ControllableTopDown = struct {
             const body = ctx.get(Game.C.Body);
             const controllable = ctx.get(Game.C.Controllable);
 
+            if (!controllable.enabled) continue;
+
             body.acceleration.x += input.leftXAxis() * controllable.speed;
             body.acceleration.y += input.leftYAxis() * controllable.speed;
 

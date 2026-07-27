@@ -1,4 +1,5 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 const Game = @import("../game.zig").Game;
 const rl = @import("raylib");
 
@@ -6,88 +7,87 @@ pub const PhysicsOptions = struct {
     enable_separate_axis_update: bool = false,
 };
 
-pub const Axis = enum { x, y };
-
 pub fn Physics(comptime options: PhysicsOptions) type {
     return struct {
         enabled: bool = true,
         gravity: Game.Vector = Game.Preset.gravity,
         grid: ?DefaultGrid = null,
+        container: BodyContainer,
 
         const grid_mod = @import("physics/grid.zig");
         pub const Grid = grid_mod.Grid;
         pub const DefaultGrid = grid_mod.DefaultGrid;
         pub const DefaultCell = grid_mod.DefaultCell;
 
-        pub fn init() @This() {
-            return .{};
+        pub const Axis = enum { x, y };
+
+        pub const BodyContainer = @import("physics/body-container.zig").BodyContainer;
+
+        pub fn init(allocator: Allocator) @This() {
+            return .{
+                .container = .init(allocator),
+            };
         }
 
         pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
             if (self.grid) |*grid| grid.deinit(allocator);
+            self.container.deinit();
         }
 
         pub fn update(self: *@This(), game: *Game) void {
-            var it = game.entityIterator(.{Game.C.Body}, .{});
+            const zone = Game.tracyZoneN(@src(), @typeName(@This()) ++ "." ++ @src().fn_name);
+            defer zone.end();
+
             const time_step = game.physicsTimeStep();
-            const physics_frames = game.physics_frames;
 
-            for (0..physics_frames) |_| {
-                it.reset();
-                while (it.next()) |ctx| {
-                    const body = ctx.get(Game.C.Body);
-                    if (!body.enabled) continue;
+            self.container.startPhysicsFrame(self.gravity);
 
-                    body.is_on_ground = false;
-
-                    body.acceleration = body.acceleration.add(self.gravity);
-                    body.velocity = body.velocity.add(body.acceleration.scale(time_step));
-                    body.rotation += body.angular_velocity * time_step;
-
-                    const axiis_updates: []const []const Axis = if (comptime options.enable_separate_axis_update)
-                        &.{ &.{.x}, &.{.y} }
-                    else
-                        &.{&.{ .x, .y }};
-
-                    inline for (axiis_updates) |axiis| {
-                        self.updateAxis(body, axiis, time_step);
-                        if (self.grid) |*grid| {
-                            grid.resolveCollisions(game, ctx, body, onCollision, axiis);
-                        }
-                    }
-
-                    applyDrag(body, time_step);
-
-                    body.acceleration = .init(0, 0);
-                }
+            for (0..game.physics_frames) |_| {
+                self.physicsFrame(game, time_step);
             }
+
+            self.container.endPhysicsFrame();
         }
 
-        pub fn updateAxis(
-            _: *@This(),
-            body: *Game.C.Body,
+        fn physicsFrame(self: *@This(), game: *Game, time_step: f32) void {
+            const frame_zone = Game.tracyZoneN(@src(), @src().fn_name);
+            defer frame_zone.end();
+
+            self.updateBodyContainer(game, time_step);
+        }
+
+        fn updateBodyContainer(self: *@This(), game: *Game, time_step: f32) void {
+            const frame_zone = Game.tracyZoneN(@src(), @src().fn_name);
+            defer frame_zone.end();
+
+            const drag_factor = 3;
+
+            if (options.enable_separate_axis_update) {
+                self.container.updatePositions(drag_factor, time_step, .x);
+                self.resolveCollisions(game, &.{.x});
+                self.container.updatePositions(drag_factor, time_step, .y);
+                self.resolveCollisions(game, &.{.y});
+            } else {
+                self.container.updatePositions(drag_factor, time_step, .x);
+                self.container.updatePositions(drag_factor, time_step, .y);
+                self.resolveCollisions(game, &.{ .x, .y });
+            }
+            self.container.updateRotation(drag_factor, time_step);
+        }
+
+        fn resolveCollisions(
+            self: *@This(),
+            game: *Game,
             comptime axiis: []const Axis,
-            time_step: f32,
         ) void {
-            inline for (comptime axiis) |axis| {
-                switch (comptime axis) {
-                    .x => {
-                        if (!body.lock_x) {
-                            body.position.x += body.velocity.x * time_step;
-                        }
-                    },
-                    .y => {
-                        if (!body.lock_y) {
-                            body.position.y += body.velocity.y * time_step;
-                        }
-                    },
-                }
+            const grid = if (self.grid) |*grid| grid else return;
+            var it = game.entityIterator(.{Game.C.Body}, .{});
+            while (it.next()) |ctx| {
+                const body = ctx.get(Game.C.Body);
+                if (!body.enabled) continue;
+                body.is_on_ground = false;
+                grid.resolveCollisions(game, ctx, body, onCollision, axiis);
             }
-        }
-
-        fn applyDrag(body: *Game.C.Body, time_step: f32) void {
-            body.velocity.x -= body.velocity.x * body.air_drag_x * time_step;
-            body.velocity.y -= body.velocity.y * body.air_drag_y * time_step;
         }
 
         fn onCollision(

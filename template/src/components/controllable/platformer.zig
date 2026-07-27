@@ -1,6 +1,7 @@
 const Game = @import("../../game.zig").Game;
 
 pub const ControllablePlatformer = struct {
+    enabled: bool = true,
     speed: f32 = 15,
     jump_strength: f32 = 300,
     coyote_time_ends_at: f64 = 0,
@@ -8,10 +9,12 @@ pub const ControllablePlatformer = struct {
     jump_count: usize = 1,
     last_is_on_ground: bool = false,
     in_air_reason: InAirReason = .none,
+    horizontal_direction: HorizontalDirection = .left,
 
     pub const coyote_time_duration = 0.1;
 
     pub const InAirReason = enum { none, jump, fall };
+    pub const HorizontalDirection = enum { left, right };
 
     pub fn init() @This() {
         return .{};

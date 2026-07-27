@@ -1,0 +1,8 @@
+bash "-c" "rm -rf .zig-cache zig-out/web"
+const build = zig "build" "-Dtarget=wasm32-emscripten"
+echo "${build}"
+if (! build) {
+  echo "zig build error, see above" >&2
+  exit 1
+}
+cp "src/minshell.html" "zig-out/web/index.html"

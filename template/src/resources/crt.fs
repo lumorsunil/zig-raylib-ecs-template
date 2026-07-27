@@ -1,5 +1,3 @@
-#version 330
-
 // Input vertex attributes (from vertex shader)
 in vec2 fragTexCoord;
 in vec4 fragColor;
@@ -11,16 +9,19 @@ uniform vec4 colDiffuse;
 // Output fragment color
 out vec4 finalColor;
 
-uniform float renderWidth = 800;
-uniform float renderHeight = 450;
+// uniform float renderWidth = 800;
+// uniform float renderHeight = 450;
+// uniform float scanlineThick = 3.0;
+// uniform float scanlineIntensity = 0.5;
+// uniform float distortX = 0.03;   // Curvature intensity on the X axis
+// uniform float distortY = 0.06;  // Curvature intensity on the Y axis
 
-float radius = 250.0;
-float angle = 0.8;
-
-uniform float scanlineThick = 3.0;
-uniform float scanlineIntensity = 0.5;
-uniform float distortX = 0.05;   // Curvature intensity on the X axis
-uniform float distortY = 0.10;  // Curvature intensity on the Y axis
+uniform float renderWidth;
+uniform float renderHeight;
+uniform float scanlineThick;
+uniform float scanlineIntensity;
+uniform float distortX;
+uniform float distortY;
 
 void main()
 {
@@ -32,6 +33,7 @@ void main()
     if (distortedTexCoord.x < 0.0 || distortedTexCoord.x > 1.0 || 
         distortedTexCoord.y < 0.0 || distortedTexCoord.y > 1.0) {
         finalColor = vec4(0.0, 0.0, 0.0, 1.0); // Black border
+        // gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); // Black border
     } else {
         vec4 crtColor = texture(texture0, distortedTexCoord);
 
@@ -47,8 +49,9 @@ void main()
         scanlineFactor *= scanlineFactor;
         float finalScanlineDarkness = mix(1.0 - scanlineIntensity, 1.0, scanlineFactor);
 
-        vec4 color = crtColor*colDiffuse*fragColor*finalScanlineDarkness;
+        vec4 color = crtColor*fragColor*finalScanlineDarkness;
 
         finalColor = vec4(color.rgb, 1.0);
+        // gl_FragColor = vec4(color.rgb, 1.0);
     }
 }
