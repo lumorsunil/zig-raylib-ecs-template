@@ -11,7 +11,7 @@ const Platformer = struct {
     pub const SControllable = SControllablePlatformer;
     pub const Input = InputPlatformer;
 
-    pub const gravity = Game.Vector.init(0, 1000);
+    pub const gravity = Game.V.v2(0, 1000);
     pub const air_drag_x = 15;
     pub const air_drag_y = 0;
 };
@@ -21,7 +21,7 @@ const TopDown = struct {
     pub const SControllable = SControllableTopDown;
     pub const Input = InputTopDown;
 
-    pub const gravity = Game.Vector.init(0, 0);
+    pub const gravity = Game.V.v2(0, 0);
     pub const air_drag_x = 5;
     pub const air_drag_y = 5;
 };

@@ -3,26 +3,25 @@ const Game = @import("../game.zig").Game;
 const rl = @import("raylib");
 
 pub const Hitbox = struct {
-    hitbox: rl.Rectangle,
+    hitbox: Game.Rectangle,
 
-    pub fn init(offset: Game.Vector, size_: Game.Vector) @This() {
-        return .{ .hitbox = .init(offset.x, offset.y, size_.x, size_.y) };
+    pub fn init(offset: Game.Vector2, size_: Game.Vector2) @This() {
+        return .{ .hitbox = .init(offset, size_) };
     }
 
-    pub fn position(self: Hitbox) Game.Vector {
-        return .init(self.hitbox.x, self.hitbox.y);
+    pub fn position(self: Hitbox) Game.Vector2 {
+        return self.hitbox.position;
     }
 
-    pub fn setPosition(self: *Hitbox, new_position: Game.Vector) void {
-        self.hitbox.x = new_position.x;
-        self.hitbox.y = new_position.y;
+    pub fn setPosition(self: *Hitbox, new_position: Game.Vector2) void {
+        self.hitbox.position = new_position;
     }
 
-    pub fn size(self: Hitbox) Game.Vector {
-        return .init(self.hitbox.width, self.hitbox.height);
+    pub fn size(self: Hitbox) Game.Vector2 {
+        return self.hitbox.size;
     }
 
-    pub fn setSize(self: *Hitbox, new_size: Game.Vector) void {
+    pub fn setSize(self: *Hitbox, new_size: Game.Vector2) void {
         self.hitbox.width = new_size.x;
         self.hitbox.height = new_size.y;
     }

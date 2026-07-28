@@ -9,7 +9,7 @@ const VAL = VectorArrayList(f32, 0, .default);
 const VAL_B = VectorArrayList(bool, false, .{ .custom = VAL_B_len });
 const VA = VAL.Vector;
 const VA_B = VAL_B.Vector;
-const Vector = Game.Vector;
+const Vector = Game.Vector2;
 const Axis = Game.S.Physics.Axis;
 
 pub const BodyContainer = struct {
@@ -53,17 +53,17 @@ pub const BodyContainer = struct {
     ) void {
         const allocator = self.allocator;
         self.gravity_factor.set(allocator, i, if (is_static) 0 else 1, null);
-        self.position_x.set(allocator, i, pos.x, null);
-        self.position_y.set(allocator, i, pos.y, null);
-        self.velocity_x.set(allocator, i, vel.x, null);
-        self.velocity_y.set(allocator, i, vel.y, null);
-        self.acceleration_x.set(allocator, i, acc.x, null);
-        self.acceleration_y.set(allocator, i, acc.y, null);
+        self.position_x.set(allocator, i, pos[0], null);
+        self.position_y.set(allocator, i, pos[1], null);
+        self.velocity_x.set(allocator, i, vel[0], null);
+        self.velocity_y.set(allocator, i, vel[1], null);
+        self.acceleration_x.set(allocator, i, acc[0], null);
+        self.acceleration_y.set(allocator, i, acc[1], null);
         self.rotation.set(allocator, i, r, null);
         self.rotation_velocity.set(allocator, i, rv, null);
         self.drag_factor.set(allocator, i, 1, null);
-        self.size_x.set(allocator, i, size.x, null);
-        self.size_y.set(allocator, i, size.y, null);
+        self.size_x.set(allocator, i, size[0], null);
+        self.size_y.set(allocator, i, size[1], null);
     }
 
     fn integrateScaledFn(dt: f32, a: *VA, b: *VA) void {
@@ -81,14 +81,14 @@ pub const BodyContainer = struct {
     }
 
     fn applyGravity(self: *@This(), gravity: Vector) void {
-        const gravity_x_vector = @as(VA, @splat(gravity.x));
+        const gravity_x_vector = @as(VA, @splat(gravity[0]));
         self.acceleration_x.iterateC(
             *const VA,
             &self.gravity_factor,
             &gravity_x_vector,
             applyGravityFn,
         );
-        const gravity_y_vector = @as(VA, @splat(gravity.y));
+        const gravity_y_vector = @as(VA, @splat(gravity[1]));
         self.acceleration_y.iterateC(
             *const VA,
             &self.gravity_factor,

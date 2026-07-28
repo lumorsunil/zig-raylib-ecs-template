@@ -9,12 +9,12 @@ pub const Body = struct {
     lock_y: bool = false,
     is_on_ground: bool = false,
 
-    pub fn init(ctx: Game.EntityContext, pos: Game.Vector, siz: Game.Vector) @This() {
+    pub fn init(ctx: Game.EntityContext, pos: Game.Vector2, siz: Game.Vector2) @This() {
         ctx.game.physics().container.setBody(
             ctx.entity.index,
             pos,
-            .init(0, 0),
-            .init(0, 0),
+            .{ 0, 0 },
+            .{ 0, 0 },
             0,
             0,
             siz,
@@ -98,7 +98,7 @@ pub const Body = struct {
                 return switch (self) {
                     .x => f32,
                     .y => f32,
-                    .xy => Game.Vector,
+                    .xy => Game.Vector2,
                 };
             }
 
@@ -154,17 +154,17 @@ pub const Body = struct {
             switch (op) {
                 inline else => |s, t| {
                     if (@TypeOf(s) == void) {
-                        const component_op_0 = @unionInit(ApplyOperation(f32), @tagName(t), {});
-                        const component_op_1 = @unionInit(ApplyOperation(f32), @tagName(t), {});
-
-                        applyOperation(f32, *f32, component_op_0, target.@"0");
-                        applyOperation(f32, *f32, component_op_1, target.@"1");
+                        const v_op = @unionInit(ApplyOperation(Game.Vector2), @tagName(t), {});
+                        var target_temp = Game.V.v2(target.@"0".*, target.@"1".*);
+                        applyOperation(Game.Vector2, *Game.Vector2, v_op, &target_temp);
+                        target.@"0".* = target_temp[0];
+                        target.@"1".* = target_temp[1];
                     } else {
-                        const component_op_0 = @unionInit(ApplyOperation(f32), @tagName(t), s.x);
-                        const component_op_1 = @unionInit(ApplyOperation(f32), @tagName(t), s.y);
-
-                        applyOperation(f32, *f32, component_op_0, target.@"0");
-                        applyOperation(f32, *f32, component_op_1, target.@"1");
+                        const v_op = @unionInit(ApplyOperation(Game.Vector2), @tagName(t), s);
+                        var target_temp = Game.V.v2(target.@"0".*, target.@"1".*);
+                        applyOperation(Game.Vector2, *Game.Vector2, v_op, &target_temp);
+                        target.@"0".* = target_temp[0];
+                        target.@"1".* = target_temp[1];
                     }
                 },
             }
@@ -181,6 +181,7 @@ pub const Body = struct {
             .round => target.* = @round(target.*),
             .floor => target.* = @floor(target.*),
             .ceil => target.* = @ceil(target.*),
+            .apply_ => |f| target.* = f(target.*),
         }
     }
 
@@ -194,6 +195,7 @@ pub const Body = struct {
             round,
             floor,
             ceil,
+            apply_: *const fn (ProviderElement) ProviderElement,
 
             pub fn set(value: ProviderElement) @This() {
                 return .{ .set_ = value };
@@ -214,38 +216,42 @@ pub const Body = struct {
             pub fn divide(value: ProviderElement) @This() {
                 return .{ .divide_ = value };
             }
+
+            pub fn apply(f: *const fn (ProviderElement) ProviderElement) @This() {
+                return .{ .apply_ = f };
+            }
         };
     }
 
-    pub fn position(self: @This()) Game.Vector {
+    pub fn position(self: @This()) Game.Vector2 {
         const x = self.getContainer().position_x.get(self.getIndex());
         const y = self.getContainer().position_y.get(self.getIndex());
 
-        return .init(x, y);
+        return .{ x, y };
     }
 
-    pub fn velocity(self: @This()) Game.Vector {
+    pub fn velocity(self: @This()) Game.Vector2 {
         const x = self.getContainer().velocity_x.get(self.getIndex());
         const y = self.getContainer().velocity_y.get(self.getIndex());
 
-        return .init(x, y);
+        return .{ x, y };
     }
 
-    pub fn acceleration(self: @This()) Game.Vector {
+    pub fn acceleration(self: @This()) Game.Vector2 {
         const x = self.getContainer().acceleration_x.get(self.getIndex());
         const y = self.getContainer().acceleration_y.get(self.getIndex());
 
-        return .init(x, y);
+        return .{ x, y };
     }
 
     pub fn rotation(self: @This()) f32 {
         return self.getContainer().rotation.get(self.getIndex());
     }
 
-    pub fn size(self: @This()) Game.Vector {
+    pub fn size(self: @This()) Game.Vector2 {
         const x = self.getContainer().size_x.get(self.getIndex());
         const y = self.getContainer().size_y.get(self.getIndex());
-        return .init(x, y);
+        return .{ x, y };
     }
 
     pub fn enableDrag(self: @This()) void {

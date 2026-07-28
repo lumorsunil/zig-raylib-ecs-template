@@ -58,8 +58,15 @@ pub const Game = struct {
 
     pub const Assets = @import("assets.zig").Assets;
 
+    pub const vector_mod = @import("vector.zig");
+    pub const V = vector_mod.V;
+    pub const Vector2 = vector_mod.Vector2;
+    pub const Vector3 = vector_mod.Vector3;
+    pub const Vector4 = vector_mod.Vector4;
+    pub const Rectangle = @import("rectangle.zig").Rectangle;
+
     pub const Camera = rl.Camera2D;
-    pub const Vector = rl.Vector2;
+    // pub const Vector2 = rl.Vector2;
     pub const Color = rl.Color;
     pub const Texture = rl.Texture2D;
     pub const Sound = rl.Sound;
@@ -142,20 +149,20 @@ pub const Game = struct {
         return 1.0 / @as(f32, self.physicsFps());
     }
 
-    pub fn screenSize(self: @This()) Vector {
-        return self.pixelSize().scale(self.zoom());
+    pub fn screenSize(self: @This()) Vector2 {
+        return self.pixelSize() * V.scalar2(self.zoom());
     }
 
-    pub fn pixelSize(_: @This()) Vector {
-        return .init(320, 256);
+    pub fn pixelSize(_: @This()) Vector2 {
+        return .{ 320, 256 };
     }
 
-    pub fn worldSize(self: @This()) Vector {
+    pub fn worldSize(self: @This()) Vector2 {
         return self.pixelSize();
     }
 
-    pub fn worldPos(_: @This()) Vector {
-        return .init(0, 0);
+    pub fn worldPos(_: @This()) Vector2 {
+        return .{ 0, 0 };
     }
 
     pub fn addSingleton(self: *@This(), singleton: anytype) void {
@@ -266,7 +273,7 @@ pub const Game = struct {
             return self.game.reg.valid(self.entity);
         }
 
-        pub fn addBody(self: @This(), position: Vector, size: Vector) *Game.C.Body {
+        pub fn addBody(self: @This(), position: Vector2, size: Vector2) *Game.C.Body {
             const body = Game.C.Body.init(self, position, size);
             self.add(body);
             return self.get(Game.C.Body);
@@ -368,13 +375,13 @@ pub const Game = struct {
     }
 
     /// Takes a world coord and returns a vector from [0,0] to [1,1]
-    pub fn getRelativePosition(self: *@This(), abs_pos: Game.Vector) Game.Vector {
+    pub fn getRelativePosition(self: *@This(), abs_pos: Game.Vector2) Game.Vector2 {
         return abs_pos.subtract(self.worldPos()).divide(self.worldSize());
     }
 
     /// Takes a vector from [0,0] to [1,1] and returns a world coord
-    pub fn getAbsolutePos(self: *@This(), rel_pos: Game.Vector) Game.Vector {
-        return rel_pos.multiply(self.worldSize()).add(self.worldPos());
+    pub fn getAbsolutePos(self: *@This(), rel_pos: Game.Vector2) Game.Vector2 {
+        return rel_pos * self.worldSize() + self.worldPos();
     }
 
     pub fn getTexture(self: *@This(), key: Assets.TextureKey) ?Texture {
@@ -447,12 +454,12 @@ pub const Game = struct {
         } else if (T == f32 or T == comptime_float or T == f64 or T == comptime_int) {
             const float_value: f32 = value;
             rl.setShaderValue(shader, loc, &float_value, .float);
-        } else if (T == Vector) {
-            rl.setShaderValue(shader, loc, &.{ value.x, value.y }, .vec2);
-        } else if (T == rl.Vector3) {
-            rl.setShaderValue(shader, loc, &.{ value.x, value.y, value.z }, .vec3);
-        } else if (T == rl.Vector4) {
-            rl.setShaderValue(shader, loc, &.{ value.x, value.y, value.z, value.w }, .vec4);
+        } else if (T == Vector2) {
+            rl.setShaderValue(shader, loc, &value, .vec2);
+        } else if (T == Vector3) {
+            rl.setShaderValue(shader, loc, &value, .vec3);
+        } else if (T == Vector4) {
+            rl.setShaderValue(shader, loc, &value, .vec4);
         } else if (T == Color) {
             rl.setShaderValue(shader, loc, &.{ value.r, value.g, value.b, value.a }, .vec4);
         } else if (T == bool) {

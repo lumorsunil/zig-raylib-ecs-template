@@ -15,8 +15,9 @@ pub fn setup(self: *Game) !void {
 
 fn initRaylib(self: *Game) !void {
     const screen_size = self.screenSize();
-    const screen_x: i32 = @intFromFloat(screen_size.x);
-    const screen_y: i32 = @intFromFloat(screen_size.y);
+    const screen_x, const screen_y = Game.V.toInt(i32, screen_size);
+    // const screen_x: i32 = @intFromFloat(screen_size.x);
+    // const screen_y: i32 = @intFromFloat(screen_size.y);
     rl.initWindow(screen_x, screen_y, "Game Template");
     rl.setWindowPosition(24, 48);
     rl.setTargetFPS(self.fps());

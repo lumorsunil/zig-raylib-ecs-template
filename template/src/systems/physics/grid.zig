@@ -1,6 +1,5 @@
 const std = @import("std");
 const Game = @import("../../game.zig").Game;
-const rl = @import("raylib");
 const Axis = Game.S.Physics.Axis;
 
 pub fn GridOptions(comptime Cell: type) type {
@@ -35,8 +34,8 @@ pub fn Grid(comptime Cell: type, comptime options: GridOptions(Cell)) type {
             allocator.free(self.data);
         }
 
-        pub fn cellSize(_: @This()) Game.Vector {
-            return .init(32, 32);
+        pub fn cellSize(_: @This()) Game.Vector2 {
+            return .{ 32, 32 };
         }
 
         pub const CellCandidates = struct {
@@ -45,32 +44,22 @@ pub fn Grid(comptime Cell: type, comptime options: GridOptions(Cell)) type {
             max_x: usize,
             max_y: usize,
 
-            pub fn init(grid: G, hitbox: rl.Rectangle) @This() {
+            pub fn init(grid: G, hitbox: Game.Rectangle) @This() {
                 const cell_size = grid.cellSize();
 
-                const hitbox_min_x = @round(hitbox.x);
-                const hitbox_max_x = @round(hitbox.x + hitbox.width);
-                const hitbox_min_y = @round(hitbox.y);
-                const hitbox_max_y = @round(hitbox.y + hitbox.height);
+                const hitbox_min = @round(hitbox.min());
+                const hitbox_max = @max(hitbox_min, @round(hitbox.max()) - Game.V.scalar2(1));
 
-                const min_x: usize = @intFromFloat(grid.clampXToGrid(@divFloor(hitbox_min_x, cell_size.x)));
-                const min_y: usize = @intFromFloat(grid.clampYToGrid(@divFloor(hitbox_min_y, cell_size.y)));
-                const max_x: usize = @intFromFloat(grid.clampXToGrid(@ceil(hitbox_max_x / cell_size.x)));
-                const max_y: usize = @intFromFloat(grid.clampYToGrid(@ceil(hitbox_max_y / cell_size.y)));
+                const min = Game.V.toInt(
+                    usize,
+                    grid.clampToGrid(@divFloor(hitbox_min, cell_size)),
+                );
+                const max = Game.V.toInt(
+                    usize,
+                    grid.clampToGrid(@divFloor(hitbox_max, cell_size)),
+                );
 
-                return .{
-                    .min_x = min_x,
-                    .min_y = min_y,
-                    .max_x = max_x,
-                    .max_y = max_y,
-                };
-            }
-
-            pub fn isEmpty(self: @This()) bool {
-                const width = self.max_x - self.min_x;
-                const height = self.max_y - self.min_y;
-
-                return width == 0 or height == 0;
+                return .{ .min_x = min[0], .min_y = min[1], .max_x = max[0], .max_y = max[1] };
             }
 
             pub fn format(
@@ -81,56 +70,30 @@ pub fn Grid(comptime Cell: type, comptime options: GridOptions(Cell)) type {
             }
         };
 
-        fn clampXToGrid(self: @This(), x: f32) f32 {
-            const fwidth: f32 = @floatFromInt(self.width);
-            return @max(0, @min(fwidth, x));
+        fn clampToGrid(self: @This(), v: Game.Vector2) Game.Vector2 {
+            const size = Game.V.v2(self.width, self.height);
+            return @max(Game.V.scalar2(0), @min(size - Game.V.scalar2(1), v));
         }
 
-        fn clampYToGrid(self: @This(), y: f32) f32 {
-            const fheight: f32 = @floatFromInt(self.height);
-            return @max(0, @min(fheight, y));
-        }
-
-        fn getRecPos(rec: rl.Rectangle, comptime axis: Axis) f32 {
+        fn getRecPos(rec: Game.Rectangle, comptime axis: Axis) f32 {
             return switch (comptime axis) {
-                .x => rec.x,
-                .y => rec.y,
+                .x => rec.position[0],
+                .y => rec.position[1],
             };
         }
 
-        fn getRecSize(rec: rl.Rectangle, comptime axis: Axis) f32 {
+        fn getRecSize(rec: Game.Rectangle, comptime axis: Axis) f32 {
             return switch (comptime axis) {
-                .x => rec.width,
-                .y => rec.height,
+                .x => rec.size[0],
+                .y => rec.size[1],
             };
         }
 
-        fn getVectorComponent(v: Game.Vector, comptime axis: Axis) f32 {
+        fn getVectorComponent(v: Game.Vector2, comptime axis: Axis) f32 {
             return switch (comptime axis) {
-                .x => v.x,
-                .y => v.y,
+                .x => v[0],
+                .y => v[1],
             };
-        }
-
-        fn addToVectorComponent(v: *Game.Vector, value: f32, comptime axis: Axis) void {
-            switch (comptime axis) {
-                .x => v.x += value,
-                .y => v.y += value,
-            }
-        }
-
-        fn roundVectorComponent(v: *Game.Vector, comptime axis: Axis) void {
-            switch (comptime axis) {
-                .x => v.x = @round(v.x),
-                .y => v.y = @round(v.y),
-            }
-        }
-
-        fn setVectorComponent(v: *Game.Vector, value: f32, comptime axis: Axis) void {
-            switch (comptime axis) {
-                .x => v.x = value,
-                .y => v.y = value,
-            }
         }
 
         pub const ResolveCollisionEvent = union(enum) {
@@ -154,16 +117,11 @@ pub fn Grid(comptime Cell: type, comptime options: GridOptions(Cell)) type {
             const candidates = CellCandidates.init(self.*, hitbox.hitbox);
             const cell_size = self.cellSize();
 
-            if (candidates.isEmpty()) return;
-
-            for (candidates.min_x..candidates.max_x) |x| {
-                for (candidates.min_y..candidates.max_y) |y| {
+            for (candidates.min_x..candidates.max_x + 1) |x| {
+                for (candidates.min_y..candidates.max_y + 1) |y| {
                     if (!self.isSolid(game, x, y)) continue;
 
-                    const cell_pos = Game.Vector.init(
-                        @floatFromInt(x),
-                        @floatFromInt(y),
-                    ).multiply(cell_size);
+                    const cell_pos = Game.V.v2(x, y) * cell_size;
 
                     inline for (comptime axiis) |axis| {
                         const body_min = getRecPos(hitbox.hitbox, axis);

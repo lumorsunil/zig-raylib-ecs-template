@@ -18,10 +18,10 @@ pub const Camera = struct {
         const position = body.position();
 
         if (self.follow_x) {
-            camera.target.x = position.x - pixel_size.x / 2;
+            camera.target.x = position[0] - pixel_size[0] / 2;
         }
         if (self.follow_y) {
-            camera.target.y = position.y - pixel_size.y / 2;
+            camera.target.y = position[1] - pixel_size[1] / 2;
         }
     }
 };

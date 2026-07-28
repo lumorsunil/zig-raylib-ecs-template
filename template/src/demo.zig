@@ -10,8 +10,8 @@ pub fn createDemo(game: *Game) !void {
 
 fn createPlayer(game: *Game) void {
     const player = game.createEntity();
-    player.add(Game.C.Renderable.initRectangle(.init(16, 16), .white));
-    _ = player.addBody(.init(150, 128), .init(16, 16));
+    player.add(Game.C.Renderable.initRectangle(.{ 16, 16 }, .white));
+    _ = player.addBody(.{ 150, 128 }, .{ 16, 16 });
     player.add(Game.C.Controllable.init());
     player.add(Game.Assets.ShaderKey.sobel);
 }
@@ -29,9 +29,9 @@ fn createAnimatedSineThing(game: *Game) !void {
             else => unreachable,
         };
         const renderable: Game.C.Renderable = switch (i % 3) {
-            0 => .initRectangle(.init(10, 10), color),
+            0 => .initRectangle(.{ 10, 10 }, color),
             1 => .initCircle(5, color),
-            2 => .initTriangle(.init(0, 0), .init(0, 10), .init(10, 10), color),
+            2 => .initTriangle(.{ 0, 0 }, .{ 0, 10 }, .{ 10, 10 }, color),
             else => unreachable,
         };
         frames[i] = .init(renderable, 1);
@@ -39,7 +39,7 @@ fn createAnimatedSineThing(game: *Game) !void {
 
     const ctx = game.createEntity();
     game.addAnimationAndRenderable(ctx, .init(.init(frames, 0.3), true));
-    _ = ctx.addBody(game.getAbsolutePos(.init(0.8, 0.2)), .init(10, 10));
+    _ = ctx.addBody(game.getAbsolutePos(.{ 0.8, 0.2 }), .{ 10, 10 });
 }
 
 fn createDefaultGrid(self: *Game) !void {
@@ -67,8 +67,8 @@ fn setupShader(self: *Game) void {
 
 fn setupCrtShader(self: *Game) void {
     const screen_size = self.screenSize();
-    self.setShaderValue(.crt, "renderWidth", screen_size.x);
-    self.setShaderValue(.crt, "renderHeight", screen_size.y);
+    self.setShaderValue(.crt, "renderWidth", screen_size[0]);
+    self.setShaderValue(.crt, "renderHeight", screen_size[1]);
     self.setShaderValue(.crt, "scanlineThick", 3.0);
     self.setShaderValue(.crt, "scanlineIntensity", 0.5);
     self.setShaderValue(.crt, "distortX", 0.03);

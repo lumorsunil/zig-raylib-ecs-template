@@ -10,7 +10,7 @@ pub const PhysicsOptions = struct {
 pub fn Physics(comptime options: PhysicsOptions) type {
     return struct {
         enabled: bool = true,
-        gravity: Game.Vector = Game.Preset.gravity,
+        gravity: Game.Vector2 = Game.Preset.gravity,
         grid: ?DefaultGrid = null,
         container: BodyContainer,
 

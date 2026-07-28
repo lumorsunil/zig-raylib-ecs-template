@@ -47,7 +47,7 @@ pub const RelativePosition = struct {
         const anchoree_body = relative_position.anchoree.getConst(Game.C.Body);
         body.applyToComponent(
             .position(.xy),
-            .set(anchoree_body.position().add(relative_position.offset)),
+            .set(anchoree_body.position() + relative_position.offset),
         );
     }
 };
