@@ -477,4 +477,22 @@ pub const Game = struct {
             rl.setShaderValue(shader, loc, &value, uniform_type);
         }
     }
+
+    pub fn getRandomEntity(
+        self: *Game,
+        comptime includes: anytype,
+        comptime excludes: anytype,
+    ) ?Game.EntityContext {
+        var len: usize = 0;
+        var it = self.entityIterator(includes, excludes);
+        while (it.next()) |_| len += 1;
+        const r = self.random().uintLessThan(usize, len);
+        it.reset();
+        for (0..r) |_| _ = it.next();
+        return it.next();
+    }
+
+    pub fn chance(self: *Game, chance_: f32) bool {
+        return self.random().float(f32) <= chance_;
+    }
 };
