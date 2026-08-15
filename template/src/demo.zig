@@ -1,5 +1,6 @@
 const Game = @import("game.zig").Game;
 const rl = @import("raylib");
+const createCE = @import("component-enum.zig").createCE;
 
 pub fn createDemo(game: *Game) !void {
     try createDefaultGrid(game);
@@ -9,11 +10,11 @@ pub fn createDemo(game: *Game) !void {
 }
 
 fn createPlayer(game: *Game) void {
-    const player = game.createEntity();
-    player.add(Game.C.Renderable.initRectangle(.{ 16, 16 }, .white));
-    _ = player.addBody(.{ 150, 128 }, .{ 16, 16 });
-    player.add(Game.C.Controllable.init());
-    player.add(Game.Assets.ShaderKey.sobel);
+    _ = game.createEntity(.{
+        .renderable = .init(.initRectangle(.{ 16, 16 }, .white)),
+        .body = .init(.{ 150, 128 }, .{ 16, 16 }),
+        .controllable = .init(),
+    });
 }
 
 fn createAnimatedSineThing(game: *Game) !void {
@@ -37,9 +38,11 @@ fn createAnimatedSineThing(game: *Game) !void {
         frames[i] = .init(renderable, 1);
     }
 
-    const ctx = game.createEntity();
-    game.addAnimationAndRenderable(ctx, .init(.init(frames, 0.3), true));
-    _ = ctx.addBody(game.getAbsolutePos(.{ 0.8, 0.2 }), .{ 10, 10 });
+    _ = game.createEntity(.{
+        .animation = .init(.init(frames, 0.3), true),
+        .renderable = .from_animation,
+        .body = .init(game.getAbsolutePos(.{ 0.8, 0.2 }), .{ 10, 10 }),
+    });
 }
 
 fn createDefaultGrid(self: *Game) !void {

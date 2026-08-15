@@ -69,6 +69,7 @@ pub const Game = struct {
     // pub const Vector2 = rl.Vector2;
     pub const Color = rl.Color;
     pub const Texture = rl.Texture2D;
+    pub const Image = rl.Image;
     pub const Sound = rl.Sound;
     pub const Music = rl.Music;
     pub const Shader = rl.Shader;
@@ -189,8 +190,8 @@ pub const Game = struct {
     pub const controllable = singletonFn(Game.S.Controllable);
     pub const destroyEntitiesSystem = singletonFn(Game.S.DestroyEntities);
 
-    pub fn createEntity(self: *@This()) EntityContext {
-        return .init(self, self.reg.create());
+    pub fn createEntity(self: *@This(), ce: @import("component-enum.zig").CE) EntityContext {
+        return @import("component-enum.zig").createCE(self, ce);
     }
 
     pub fn destroyEntity(self: *@This(), entity: ecs.Entity) void {
@@ -387,6 +388,11 @@ pub const Game = struct {
     pub fn getTexture(self: *@This(), key: Assets.TextureKey) ?Texture {
         const texture = self.assets().textures.load(.init(self), key) orelse return null;
         return texture.*;
+    }
+
+    pub fn getImage(self: *@This(), key: Assets.ImageKey) ?Image {
+        const image = self.assets().images.load(.init(self), key) orelse return null;
+        return image.*;
     }
 
     pub fn getSound(self: *@This(), key: Assets.SoundKey) ?Sound {

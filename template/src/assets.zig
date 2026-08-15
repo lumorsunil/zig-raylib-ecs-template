@@ -80,28 +80,16 @@ pub fn AssetContainer(
 
 pub const Assets = struct {
     textures: Textures = .empty,
+    images: Images = .empty,
     sounds: Sounds = .empty,
     musics: Musics = .empty,
     shaders: Shaders = .empty,
 
-    pub const TextureKey = enum {
-        spritesheet,
-        bg,
-    };
-
-    pub const SoundKey = enum {
-        example,
-    };
-
-    pub const MusicKey = enum {
-        example,
-    };
-
-    pub const ShaderKey = enum {
-        crt,
-        god_rays,
-        sobel,
-    };
+    pub const TextureKey = @import("assets-keys.zig").TextureKey;
+    pub const ImageKey = @import("assets-keys.zig").ImageKey;
+    pub const SoundKey = @import("assets-keys.zig").SoundKey;
+    pub const MusicKey = @import("assets-keys.zig").MusicKey;
+    pub const ShaderKey = @import("assets-keys.zig").ShaderKey;
 
     pub const Textures = AssetContainer(TextureKey, Game.Texture, .{
         .keyToFilename = textureKeyToFilename,
@@ -110,6 +98,15 @@ pub const Assets = struct {
     });
     fn loadTexture(_: LoadAssetContext, filename: [:0]const u8) !Game.Texture {
         return rl.loadTexture(filename);
+    }
+
+    pub const Images = AssetContainer(ImageKey, Game.Image, .{
+        .keyToFilename = textureKeyToFilename,
+        .load = loadImage,
+        .unload = rl.unloadImage,
+    });
+    fn loadImage(_: LoadAssetContext, filename: [:0]const u8) !Game.Image {
+        return rl.loadImage(filename);
     }
 
     pub const Sounds = AssetContainer(SoundKey, Game.Sound, .{
