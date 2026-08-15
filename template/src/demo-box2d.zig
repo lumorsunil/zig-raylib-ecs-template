@@ -3,16 +3,34 @@ const rl = @import("raylib");
 const createCE = @import("component-enum.zig").createCE;
 
 pub fn createDemo(game: *Game) !void {
-    try createDefaultGrid(game);
+    createWorld(game);
     createPlayer(game);
+    createGround(game);
     try createAnimatedSineThing(game);
     setupShader(game);
+}
+
+fn createWorld(game: *Game) void {
+    var world_def = Game.b2.b2DefaultWorldDef();
+    world_def.gravity = Game.V.toB2(@import("preset.zig").Preset.gravity);
+    const world = Game.b2.b2CreateWorld(&world_def);
+    game.addSingleton(world);
 }
 
 fn createPlayer(game: *Game) void {
     _ = game.createEntity(.{
         .renderable = .init(.initRectangle(.{ 16, 16 }, .white)),
         .body = .boxAuto(.{ 150, 128 }, .{ 16, 16 }, .{}),
+        .controllable = .init(),
+    });
+}
+
+fn createGround(game: *Game) void {
+    const size = Game.V.v2(640, 16);
+
+    _ = game.createEntity(.{
+        .renderable = .init(.initRectangle(size, .white)),
+        .body = .boxAuto(.{ 0, 160 }, size, .{ .is_dynamic = false }),
         .controllable = .init(),
     });
 }
@@ -43,24 +61,6 @@ fn createAnimatedSineThing(game: *Game) !void {
         .renderable = .from_animation,
         .body = .boxAuto(game.getAbsolutePos(.{ 0.8, 0.2 }), .{ 10, 10 }, .{}),
     });
-}
-
-fn createDefaultGrid(self: *Game) !void {
-    const grid = try Game.S.Physics.DefaultGrid.init(self.allocator, 10, 8);
-
-    for (0..grid.width) |x| {
-        for (0..grid.height) |y| {
-            const cell = &grid.data[x + y * grid.width];
-
-            if (y == grid.height - 2 and x > 0 and x < grid.width - 1) {
-                cell.is_solid = true;
-            } else {
-                cell.is_solid = false;
-            }
-        }
-    }
-
-    self.physics().grid = grid;
 }
 
 fn setupShader(self: *Game) void {

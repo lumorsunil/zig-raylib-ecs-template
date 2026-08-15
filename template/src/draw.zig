@@ -11,7 +11,9 @@ pub fn draw(self: *Game) void {
     rl.clearBackground(.black);
     self.camera().begin();
     drawBg(self);
-    drawGrid(self);
+    if (!comptime @import("preset.zig").Preset.is_box2d) {
+        drawGrid(self);
+    }
     drawRenderables(self);
     self.camera().end();
     rl.drawFPS(8, 8);

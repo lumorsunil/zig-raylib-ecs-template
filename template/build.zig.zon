@@ -20,6 +20,10 @@
             .url = "../../ztracy-0.16.0/",
             .hash = "ztracy-0.16.0-zHJSqygHGQCw73UVaWdfUT1SSCiST9m4jxPIJSrvceDZ",
         },
+        .box2d = .{
+            .url = "../../box2d",
+            .hash = "box2d-3.1.1-crFBk3YnAABWFkufqcZStf3g-6aDK4ffeT00SJ7Gakjn",
+        },
     },
     .paths = .{
         "build.zig",

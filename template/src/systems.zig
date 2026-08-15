@@ -1,7 +1,7 @@
 pub const Animation = @import("systems/animation.zig").Animation;
 pub const Camera = @import("systems/camera.zig").Camera;
-pub const Controllable = @import("systems/controllable.zig").Controllable;
+pub const Controllable = @import("preset.zig").Preset.SControllable;
 pub const DestroyEntities = @import("systems/destroy-entities.zig").DestroyEntities;
-pub const Input = @import("systems/input.zig").Input;
-pub const Physics = @import("systems/physics.zig").Physics(.{ .enable_separate_axis_update = true });
+pub const Input = @import("preset.zig").Preset.Input;
+pub const Physics = @import("preset.zig").Preset.Physics;
 pub const RelativePosition = @import("systems/relative-position.zig").RelativePosition;

@@ -9,7 +9,7 @@ pub fn setup(self: *Game) !void {
     initAssets(self, .load_all);
 
     @import("setup-systems.zig").setupSystems(self);
-    try @import("demo.zig").createDemo(self);
+    try @import("preset.zig").Preset.demo_mod.createDemo(self);
 
     self.elapsed_time = self.elapsedRealTime();
 }

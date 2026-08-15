@@ -14,6 +14,8 @@ pub fn Physics(comptime options: PhysicsOptions) type {
         grid: ?DefaultGrid = null,
         container: BodyContainer,
 
+        pub const BackendImpl = @import("../physics-backend/container.zig").PhysicsBackendImplContainer;
+
         const grid_mod = @import("physics/grid.zig");
         pub const Grid = grid_mod.Grid;
         pub const DefaultGrid = grid_mod.DefaultGrid;
@@ -23,9 +25,9 @@ pub fn Physics(comptime options: PhysicsOptions) type {
 
         pub const BodyContainer = @import("physics/body-container.zig").BodyContainer;
 
-        pub fn init(allocator: Allocator) @This() {
+        pub fn init(game: *Game) @This() {
             return .{
-                .container = .init(allocator),
+                .container = .init(game.allocator),
             };
         }
 
@@ -84,7 +86,6 @@ pub fn Physics(comptime options: PhysicsOptions) type {
             var it = game.entityIterator(.{Game.C.Body}, .{});
             while (it.next()) |ctx| {
                 const body = ctx.get(Game.C.Body);
-                if (!body.enabled) continue;
                 body.is_on_ground = false;
                 grid.resolveCollisions(game, ctx, body, onCollision, axiis);
             }

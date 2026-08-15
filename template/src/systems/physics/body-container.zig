@@ -26,6 +26,7 @@ pub const BodyContainer = struct {
     drag_factor: VAL = .empty,
     size_x: VAL = .empty,
     size_y: VAL = .empty,
+    density: VAL = .empty,
 
     pub fn init(allocator: Allocator) @This() {
         return .{ .allocator = allocator };
@@ -64,6 +65,7 @@ pub const BodyContainer = struct {
         self.drag_factor.set(allocator, i, 1, null);
         self.size_x.set(allocator, i, size[0], null);
         self.size_y.set(allocator, i, size[1], null);
+        self.density.set(allocator, i, 1, null);
     }
 
     fn integrateScaledFn(dt: f32, a: *VA, b: *VA) void {
@@ -111,6 +113,46 @@ pub const BodyContainer = struct {
         const factor_v = @as(VA, @splat(factor));
 
         val.iterateC(*const VA, &self.drag_factor, &factor_v, applyDragFn);
+    }
+
+    pub fn getMass(self: *@This(), i: usize) f32 {
+        const size_x = self.size_x.get(i);
+        const size_y = self.size_y.get(i);
+        const density = self.density.get(i);
+
+        return size_x * size_y * density;
+    }
+
+    pub fn applyForce(self: *@This(), i: usize, force: Vector) void {
+        const x = self.acceleration_x.getP(self.allocator, i);
+        const y = self.acceleration_y.getP(self.allocator, i);
+
+        const mass = self.getMass(i);
+
+        if (mass == 0) {
+            x.* = force[0] / mass;
+            y.* = force[1] / mass;
+        } else {
+            // TODO: should we do max speed here?
+            x.* = force[0];
+            y.* = force[1];
+        }
+    }
+
+    pub fn applyImpulse(self: *@This(), i: usize, impulse: Vector) void {
+        const x = self.velocity_x.getP(self.allocator, i);
+        const y = self.velocity_y.getP(self.allocator, i);
+
+        const mass = self.getMass();
+
+        if (mass == 0) {
+            x.* = impulse[0] / mass;
+            y.* = impulse[1] / mass;
+        } else {
+            // TODO: should we do max speed here?
+            x.* = impulse[0];
+            y.* = impulse[1];
+        }
     }
 
     pub fn startPhysicsFrame(self: *@This(), gravity: Vector) void {

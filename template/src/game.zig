@@ -63,7 +63,11 @@ pub const Game = struct {
     pub const Vector2 = vector_mod.Vector2;
     pub const Vector3 = vector_mod.Vector3;
     pub const Vector4 = vector_mod.Vector4;
+    pub const WorldVector = @import("preset.zig").Preset.WorldVector;
     pub const Rectangle = @import("rectangle.zig").Rectangle;
+
+    pub const PhysicsBackend = @import("physics-backend.zig").PhysicsBackend;
+    pub const b2 = @import("box2d");
 
     pub const Camera = rl.Camera2D;
     // pub const Vector2 = rl.Vector2;
@@ -274,8 +278,8 @@ pub const Game = struct {
             return self.game.reg.valid(self.entity);
         }
 
-        pub fn addBody(self: @This(), position: Vector2, size: Vector2) *Game.C.Body {
-            const body = Game.C.Body.init(self, position, size);
+        pub fn addBody(self: @This()) *Game.C.Body {
+            const body = Game.C.Body.init(self);
             self.add(body);
             return self.get(Game.C.Body);
         }

@@ -25,6 +25,11 @@ pub fn build(b: *std.Build) !void {
     const raylib = raylib_dep.module("raylib");
     const raylib_artifact = raylib_dep.artifact("raylib");
 
+    const box2d = b.dependency("box2d", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("box2d");
+
     const ecs = b.dependency("entt", .{
         .target = target,
         .optimize = optimize,
@@ -36,6 +41,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
         .imports = &.{
             .{ .name = "ztracy", .module = ztracy },
+            .{ .name = "box2d", .module = box2d },
             .{ .name = "raylib", .module = raylib },
             .{ .name = "ecs", .module = ecs },
         },
