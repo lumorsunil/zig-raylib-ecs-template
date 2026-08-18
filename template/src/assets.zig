@@ -91,49 +91,49 @@ pub const Assets = struct {
     pub const MusicKey = @import("assets-keys.zig").MusicKey;
     pub const ShaderKey = @import("assets-keys.zig").ShaderKey;
 
-    pub const Textures = AssetContainer(TextureKey, Game.Texture, .{
+    pub const Textures = AssetContainer(TextureKey, Game.L.Texture, .{
         .keyToFilename = textureKeyToFilename,
         .load = loadTexture,
         .unload = rl.unloadTexture,
     });
-    fn loadTexture(_: LoadAssetContext, filename: [:0]const u8) !Game.Texture {
+    fn loadTexture(_: LoadAssetContext, filename: [:0]const u8) !Game.L.Texture {
         return rl.loadTexture(filename);
     }
 
-    pub const Images = AssetContainer(ImageKey, Game.Image, .{
+    pub const Images = AssetContainer(ImageKey, Game.L.Image, .{
         .keyToFilename = textureKeyToFilename,
         .load = loadImage,
         .unload = rl.unloadImage,
     });
-    fn loadImage(_: LoadAssetContext, filename: [:0]const u8) !Game.Image {
+    fn loadImage(_: LoadAssetContext, filename: [:0]const u8) !Game.L.Image {
         return rl.loadImage(filename);
     }
 
-    pub const Sounds = AssetContainer(SoundKey, Game.Sound, .{
+    pub const Sounds = AssetContainer(SoundKey, Game.L.Sound, .{
         .keyToFilename = soundKeyToFilename,
         .load = loadSound,
         .unload = rl.unloadSound,
     });
-    fn loadSound(_: LoadAssetContext, filename: [:0]const u8) !Game.Sound {
+    fn loadSound(_: LoadAssetContext, filename: [:0]const u8) !Game.L.Sound {
         return rl.loadSound(filename);
     }
 
-    pub const Musics = AssetContainer(MusicKey, Game.Music, .{
+    pub const Musics = AssetContainer(MusicKey, Game.L.Music, .{
         .keyToFilename = musicKeyToFilename,
         .load = loadMusic,
         .unload = rl.unloadMusicStream,
     });
-    fn loadMusic(_: LoadAssetContext, filename: [:0]const u8) !Game.Music {
+    fn loadMusic(_: LoadAssetContext, filename: [:0]const u8) !Game.L.Music {
         return rl.loadMusicStream(filename);
     }
 
-    pub const Shaders = AssetContainer(ShaderKey, Game.Shader, .{
+    pub const Shaders = AssetContainer(ShaderKey, Game.L.Shader, .{
         .keyToFilename = shaderKeyToFilename,
         .load = loadShader,
         .unload = rl.unloadShader,
     });
     pub const LoadShaderError = error{InvalidFilename};
-    fn loadShader(ctx: LoadAssetContext, filenames: [:0]const u8) !Game.Shader {
+    fn loadShader(ctx: LoadAssetContext, filenames: [:0]const u8) !Game.L.Shader {
         const basename = std.fs.path.basename(filenames);
         const dirname = std.fs.path.dirname(filenames) orelse ".";
         var it = std.mem.splitScalar(u8, basename, ';');

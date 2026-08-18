@@ -10,7 +10,7 @@ pub const PhysicsOptions = struct {
 pub fn Physics(comptime options: PhysicsOptions) type {
     return struct {
         enabled: bool = true,
-        gravity: Game.Vector2 = Game.Preset.gravity,
+        gravity: Game.L.Vector2 = Game.L.Preset.gravity,
         grid: ?DefaultGrid = null,
         container: BodyContainer,
 
@@ -37,7 +37,7 @@ pub fn Physics(comptime options: PhysicsOptions) type {
         }
 
         pub fn update(self: *@This(), game: *Game) void {
-            const zone = Game.tracyZoneN(@src(), @typeName(@This()) ++ "." ++ @src().fn_name);
+            const zone = Game.L.tracyZoneN(@src(), @typeName(@This()) ++ "." ++ @src().fn_name);
             defer zone.end();
 
             const time_step = game.physicsTimeStep();
@@ -52,14 +52,14 @@ pub fn Physics(comptime options: PhysicsOptions) type {
         }
 
         fn physicsFrame(self: *@This(), game: *Game, time_step: f32) void {
-            const frame_zone = Game.tracyZoneN(@src(), @src().fn_name);
+            const frame_zone = Game.L.tracyZoneN(@src(), @src().fn_name);
             defer frame_zone.end();
 
             self.updateBodyContainer(game, time_step);
         }
 
         fn updateBodyContainer(self: *@This(), game: *Game, time_step: f32) void {
-            const frame_zone = Game.tracyZoneN(@src(), @src().fn_name);
+            const frame_zone = Game.L.tracyZoneN(@src(), @src().fn_name);
             defer frame_zone.end();
 
             const drag_factor = 3;
@@ -92,7 +92,7 @@ pub fn Physics(comptime options: PhysicsOptions) type {
         }
 
         fn onCollision(
-            _: Game.EntityContext,
+            _: Game.L.EntityContext,
             body: *Game.C.Body,
             event: DefaultGrid.ResolveCollisionEvent,
         ) void {

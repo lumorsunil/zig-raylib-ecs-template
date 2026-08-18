@@ -20,7 +20,7 @@ fn createPlayer(game: *Game) void {
 fn createAnimatedSineThing(game: *Game) !void {
     const frames = try game.allocator.alloc(Game.C.Animation.Frame, 6);
     for (0..frames.len) |i| {
-        const color: Game.Color = switch (i) {
+        const color: Game.L.Color = switch (i) {
             0 => .red,
             1 => .blue,
             2 => .yellow,

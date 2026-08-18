@@ -14,7 +14,7 @@ pub const Physics = struct {
     }
 
     pub fn update(self: *@This(), game: *Game) void {
-        const zone = Game.tracyZoneN(@src(), @typeName(@This()) ++ "." ++ @src().fn_name);
+        const zone = Game.L.tracyZoneN(@src(), @typeName(@This()) ++ "." ++ @src().fn_name);
         defer zone.end();
 
         const time_step = game.physicsTimeStep();
@@ -25,10 +25,10 @@ pub const Physics = struct {
     }
 
     fn physicsFrame(_: *@This(), game: *Game, time_step: f32) void {
-        const frame_zone = Game.tracyZoneN(@src(), @src().fn_name);
+        const frame_zone = Game.L.tracyZoneN(@src(), @src().fn_name);
         defer frame_zone.end();
 
-        const world = game.getSingleton(Game.b2.b2WorldId);
+        const world = game.getSingleton(Game.L.b2.b2WorldId);
         world.Step(time_step, sub_step_count);
     }
 };

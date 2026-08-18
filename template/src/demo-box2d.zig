@@ -11,9 +11,9 @@ pub fn createDemo(game: *Game) !void {
 }
 
 fn createWorld(game: *Game) void {
-    var world_def = Game.b2.b2DefaultWorldDef();
-    world_def.gravity = Game.V.toB2(@import("preset.zig").Preset.gravity);
-    const world = Game.b2.b2CreateWorld(&world_def);
+    var world_def = Game.L.b2.b2DefaultWorldDef();
+    world_def.gravity = Game.L.V.toB2(@import("preset.zig").Preset.gravity);
+    const world = Game.L.b2.b2CreateWorld(&world_def);
     game.addSingleton(world);
 }
 
@@ -26,7 +26,7 @@ fn createPlayer(game: *Game) void {
 }
 
 fn createGround(game: *Game) void {
-    const size = Game.V.v2(640, 16);
+    const size = Game.L.V.v2(640, 16);
 
     _ = game.createEntity(.{
         .renderable = .init(.initRectangle(size, .white)),
@@ -38,7 +38,7 @@ fn createGround(game: *Game) void {
 fn createAnimatedSineThing(game: *Game) !void {
     const frames = try game.allocator.alloc(Game.C.Animation.Frame, 6);
     for (0..frames.len) |i| {
-        const color: Game.Color = switch (i) {
+        const color: Game.L.Color = switch (i) {
             0 => .red,
             1 => .blue,
             2 => .yellow,

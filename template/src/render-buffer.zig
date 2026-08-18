@@ -5,8 +5,8 @@ pub const RenderBuffer = struct {
     render_texture_a: rl.RenderTexture,
     render_texture_b: rl.RenderTexture,
 
-    pub fn init(screen_size: Game.Vector2) !@This() {
-        const width, const height = Game.V.toInt(i32, screen_size);
+    pub fn init(screen_size: Game.L.Vector2) !@This() {
+        const width, const height = Game.L.V.toInt(i32, screen_size);
 
         return .{
             .render_texture_a = try rl.loadRenderTexture(width, height),

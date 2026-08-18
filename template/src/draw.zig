@@ -5,16 +5,17 @@ const rl = @import("raylib");
 const enable_debug_draw = true;
 
 pub fn draw(self: *Game) void {
-    const render_buffer = self.getSingleton(Game.RenderBuffer);
+    const render_buffer = self.getSingleton(Game.L.RenderBuffer);
     rl.beginTextureMode(render_buffer.render_texture_a);
 
     rl.clearBackground(.black);
     self.camera().begin();
-    drawBg(self);
-    if (!comptime @import("preset.zig").Preset.is_box2d) {
-        drawGrid(self);
+    switch (self.screen_state) {
+        .menu => drawMenu(self),
+        .gameplay => drawGameplay(self),
+        .game_over => drawGameOver(self),
+        .ending => drawEnding(self),
     }
-    drawRenderables(self);
     self.camera().end();
     rl.drawFPS(8, 8);
 
@@ -50,7 +51,7 @@ pub fn draw(self: *Game) void {
 
     rl.drawTextureRec(
         render_buffer.render_texture_a.texture,
-        Game.Rectangle.init(.{ 0, 0 }, screen_size * Game.V.v2(1, -1)).toRl(),
+        Game.L.Rectangle.init(.{ 0, 0 }, screen_size * Game.L.V.v2(1, -1)).toRl(),
         .init(0, 0),
         .white,
     );
@@ -58,6 +59,26 @@ pub fn draw(self: *Game) void {
     self.endShaderMode();
 
     rl.endDrawing();
+}
+
+fn drawMenu(game: *Game) void {
+    _ = game;
+}
+
+fn drawGameplay(game: *Game) void {
+    drawBg(game);
+    if (!comptime @import("preset.zig").Preset.is_box2d) {
+        drawGrid(game);
+    }
+    drawRenderables(game);
+}
+
+fn drawGameOver(game: *Game) void {
+    _ = game;
+}
+
+fn drawEnding(game: *Game) void {
+    _ = game;
 }
 
 fn debugDrawUI(self: *Game) void {
@@ -74,10 +95,10 @@ fn debugDrawUI(self: *Game) void {
     }
 }
 
-fn drawText(comptime fmt: []const u8, args: anytype, position: Game.Vector2) void {
+fn drawText(comptime fmt: []const u8, args: anytype, position: Game.L.Vector2) void {
     var buffer: [256]u8 = undefined;
     const text = std.fmt.bufPrintZ(&buffer, fmt, args) catch unreachable;
-    const x, const y = Game.V.toInt(i32, position);
+    const x, const y = Game.L.V.toInt(i32, position);
     rl.drawText(text, x, y, 8, .green);
 }
 
@@ -89,7 +110,7 @@ fn drawRenderables(self: *Game) void {
     );
 }
 
-fn drawRenderable(ctx: Game.EntityContext) void {
+fn drawRenderable(ctx: Game.L.EntityContext) void {
     const body = ctx.get(Game.C.Body);
     const renderable = ctx.get(Game.C.Renderable);
 
@@ -102,8 +123,8 @@ fn drawRenderable(ctx: Game.EntityContext) void {
     }
 }
 
-fn beginRenderableShader(ctx: Game.EntityContext) bool {
-    if (ctx.tryGetConst(Game.Assets.ShaderKey)) |shader| {
+fn beginRenderableShader(ctx: Game.L.EntityContext) bool {
+    if (ctx.tryGetConst(Game.L.Assets.ShaderKey)) |shader| {
         ctx.game.beginShaderMode(shader);
         if (ctx.tryGet(Game.C.PrepareShader)) |prepare_shader| {
             prepare_shader.prepare(ctx, shader);
@@ -128,8 +149,8 @@ fn drawGrid(self: *Game) void {
             if (!grid.isSolid(self, x, y)) continue;
 
             const size = grid.cellSize();
-            const position = Game.V.v2(x, y) * size;
-            rl.drawRectangleV(Game.V.toRl(position), Game.V.toRl(size), .light_gray);
+            const position = Game.L.V.v2(x, y) * size;
+            rl.drawRectangleV(Game.L.V.toRl(position), Game.L.V.toRl(size), .light_gray);
         }
     }
 }

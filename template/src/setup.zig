@@ -9,13 +9,14 @@ pub fn setup(self: *Game) !void {
     initAssets(self, .load_all);
 
     @import("setup-systems.zig").setupSystems(self);
+    setupSystems(self);
     try @import("preset.zig").Preset.demo_mod.createDemo(self);
 
     self.elapsed_time = self.elapsedRealTime();
 }
 
 fn createCamera(self: *Game) void {
-    self.addSingleton(Game.Camera{
+    self.addSingleton(Game.L.Camera{
         .offset = .zero(),
         .target = .zero(),
         .rotation = 0,
@@ -23,6 +24,17 @@ fn createCamera(self: *Game) void {
     });
 }
 
-fn initAssets(self: *Game, comptime options: Game.Assets.InitOptions) void {
-    self.addSingleton(Game.Assets.init(.init(self), options));
+fn initAssets(self: *Game, comptime options: Game.L.Assets.InitOptions) void {
+    self.addSingleton(Game.L.Assets.init(.init(self), options));
+}
+
+fn setupSystems(game: *Game) void {
+    inline for (comptime std.meta.declarations(Game.S)) |decl| {
+        const System = @field(Game.S, decl.name);
+
+        if (std.meta.hasMethod(System, "setup")) {
+            const system = game.getSingleton(System);
+            system.setup(game);
+        }
+    }
 }

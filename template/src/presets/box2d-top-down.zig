@@ -7,7 +7,7 @@ pub const Box2D_TopDown = struct {
     pub const Input = TopDown.Input;
     pub const Physics = @import("../systems/physics-box2d.zig").Physics;
     pub const Body = @import("../components/body.zig").Body;
-    pub const WorldVector = Game.Vector2;
+    pub const WorldVector = Game.L.Vector2;
 
     pub const demo_mod = @import("../demo-box2d.zig");
 

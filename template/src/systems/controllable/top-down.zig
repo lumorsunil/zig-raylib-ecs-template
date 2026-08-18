@@ -17,7 +17,7 @@ pub const ControllableTopDown = struct {
 
             if (!controllable.enabled) continue;
 
-            var force = Game.V.v2(input.leftXAxis(), input.leftYAxis());
+            var force = Game.L.V.v2(input.leftXAxis(), input.leftYAxis());
 
             if (input.isDown(.move_right)) {
                 force[0] += 1;
@@ -32,7 +32,7 @@ pub const ControllableTopDown = struct {
                 force[1] += 1;
             }
 
-            body.applyForce(force * Game.V.scalar2(controllable.speed));
+            body.applyForce(force * Game.L.V.scalar2(controllable.speed));
         }
     }
 };

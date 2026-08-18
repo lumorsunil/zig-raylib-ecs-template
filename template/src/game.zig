@@ -14,73 +14,16 @@ pub const Game = struct {
     rem_time: f32 = 0,
     is_paused: bool = false,
     music: ?rl.Music = null,
-    mode: Mode = .normal,
-    screen_state: ScreenState = .menu,
+    noise_cache: std.AutoHashMapUnmanaged(u64, L.PerlinNoise2D) = .empty,
+    mode: L.Mode = .normal,
+    screen_state: L.ScreenState = .gameplay,
     wants_to_quit: bool = false,
 
     pub const max_physics_frames = 1;
-    pub const Preset = @import("preset.zig").Preset;
-
-    const Mode = enum { normal, debug };
-
-    pub const ScreenState = union(enum) {
-        menu,
-        gameplay,
-        game_over,
-        ending,
-    };
-
-    pub const ztracy = @import("ztracy");
-
-    pub const ZoneCtx = struct {
-        ctx: ztracy.ZoneCtx,
-
-        pub fn init(ctx: ztracy.ZoneCtx) @This() {
-            return .{ .ctx = ctx };
-        }
-
-        pub fn end(self: @This()) void {
-            self.ctx.End();
-        }
-    };
-
-    pub fn tracyZoneN(comptime src: std.builtin.SourceLocation, label: [*:0]const u8) ZoneCtx {
-        return .init(ztracy.ZoneN(src, label));
-    }
-
-    pub fn tracyZoneNC(
-        comptime src: std.builtin.SourceLocation,
-        label: [*:0]const u8,
-        color: Color,
-    ) ZoneCtx {
-        return .init(ztracy.ZoneNC(src, label, @bitCast(color.toInt())));
-    }
-
-    pub const Assets = @import("assets.zig").Assets;
-
-    pub const vector_mod = @import("vector.zig");
-    pub const V = vector_mod.V;
-    pub const Vector2 = vector_mod.Vector2;
-    pub const Vector3 = vector_mod.Vector3;
-    pub const Vector4 = vector_mod.Vector4;
-    pub const WorldVector = @import("preset.zig").Preset.WorldVector;
-    pub const Rectangle = @import("rectangle.zig").Rectangle;
-
-    pub const PhysicsBackend = @import("physics-backend.zig").PhysicsBackend;
-    pub const b2 = @import("box2d");
-
-    pub const Camera = rl.Camera2D;
-    // pub const Vector2 = rl.Vector2;
-    pub const Color = rl.Color;
-    pub const Texture = rl.Texture2D;
-    pub const Image = rl.Image;
-    pub const Sound = rl.Sound;
-    pub const Music = rl.Music;
-    pub const Shader = rl.Shader;
-    pub const RenderBuffer = @import("render-buffer.zig").RenderBuffer;
 
     pub const C = @import("components.zig");
     pub const S = @import("systems.zig");
+    pub const L = @import("lib.zig");
 
     pub fn init(main_init: std.process.Init) @This() {
         return .{
@@ -92,6 +35,9 @@ pub const Game = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        self.noise_cache.deinit(self.allocator);
+        const event = self.getSingleton(Game.S.Event);
+        event.deinit();
         self.physics().deinit(self.allocator);
         self.reg.deinit();
         rl.closeAudioDevice();
@@ -154,19 +100,19 @@ pub const Game = struct {
         return 1.0 / @as(f32, self.physicsFps());
     }
 
-    pub fn screenSize(self: @This()) Vector2 {
-        return self.pixelSize() * V.scalar2(self.zoom());
+    pub fn screenSize(self: @This()) L.Vector2 {
+        return self.pixelSize() * L.V.scalar2(self.zoom());
     }
 
-    pub fn pixelSize(_: @This()) Vector2 {
+    pub fn pixelSize(_: @This()) L.Vector2 {
         return .{ 320, 256 };
     }
 
-    pub fn worldSize(self: @This()) Vector2 {
+    pub fn worldSize(self: @This()) L.Vector2 {
         return self.pixelSize();
     }
 
-    pub fn worldPos(_: @This()) Vector2 {
+    pub fn worldPos(_: @This()) L.Vector2 {
         return .{ 0, 0 };
     }
 
@@ -186,15 +132,15 @@ pub const Game = struct {
         }.get;
     }
 
-    pub const assets = singletonFn(Assets);
-    pub const camera = singletonFn(Camera);
+    pub const assets = singletonFn(L.Assets);
+    pub const camera = singletonFn(L.Camera);
     pub const cameraSystem = singletonFn(Game.S.Camera);
     pub const input = singletonFn(Game.S.Input);
     pub const physics = singletonFn(Game.S.Physics);
     pub const controllable = singletonFn(Game.S.Controllable);
     pub const destroyEntitiesSystem = singletonFn(Game.S.DestroyEntities);
 
-    pub fn createEntity(self: *@This(), ce: @import("component-enum.zig").CE) EntityContext {
+    pub fn createEntity(self: *@This(), ce: @import("component-enum.zig").CE) L.EntityContext {
         return @import("component-enum.zig").createCE(self, ce);
     }
 
@@ -203,12 +149,12 @@ pub const Game = struct {
         destroy_entities.destroy(entity);
     }
 
-    pub fn getOneByTag(self: *@This(), comptime T: type) EntityContext {
+    pub fn getOneByTag(self: *@This(), comptime T: type) L.EntityContext {
         var it = self.entityIterator(.{T}, .{});
         return it.next().?;
     }
 
-    pub fn tryGetOneByTag(self: *@This(), comptime T: type) ?EntityContext {
+    pub fn tryGetOneByTag(self: *@This(), comptime T: type) ?L.EntityContext {
         var it = self.entityIterator(.{T}, .{});
         return it.next();
     }
@@ -224,112 +170,17 @@ pub const Game = struct {
         return ctx.tryGet(T);
     }
 
-    pub const EntityContext = struct {
-        game: *Game,
-        entity: ecs.Entity,
-
-        pub fn init(game: *Game, entity: ecs.Entity) @This() {
-            return .{ .game = game, .entity = entity };
-        }
-
-        pub fn has(self: EntityContext, comptime T: type) bool {
-            return self.game.reg.has(T, self.entity);
-        }
-
-        pub fn get(self: EntityContext, comptime T: type) *T {
-            return self.game.reg.get(T, self.entity);
-        }
-
-        pub fn getConst(self: EntityContext, comptime T: type) T {
-            return self.game.reg.getConst(T, self.entity);
-        }
-
-        /// If the entry wasn't found, it is initialized with ```undefined```
-        pub fn getOrAdd(self: EntityContext, comptime T: type) *T {
-            // Own implementation since zig-ecs doesn't initialize
-            // value to undefined, it tries to use default constructor
-            // which makes some types impossible to use with the original getOrAdd
-            if (self.tryGet(T)) |ptr| return ptr;
-            self.add(@as(T, undefined));
-            return self.get(T);
-        }
-
-        pub fn tryGet(self: EntityContext, comptime T: type) ?*T {
-            return self.game.reg.tryGet(T, self.entity);
-        }
-
-        pub fn tryGetConst(self: EntityContext, comptime T: type) ?T {
-            return self.game.reg.tryGetConst(T, self.entity);
-        }
-
-        pub fn add(self: EntityContext, component: anytype) void {
-            return self.game.reg.addOrReplace(self.entity, component);
-        }
-
-        pub fn remove(self: EntityContext, comptime T: type) void {
-            return self.game.reg.removeIfExists(T, self.entity);
-        }
-
-        pub fn destroy(self: EntityContext) void {
-            self.game.destroyEntity(self.entity);
-        }
-
-        pub fn valid(self: EntityContext) bool {
-            return self.game.reg.valid(self.entity);
-        }
-
-        pub fn addBody(self: @This()) *Game.C.Body {
-            const body = Game.C.Body.init(self);
-            self.add(body);
-            return self.get(Game.C.Body);
-        }
-    };
-
-    fn EntityIterator(comptime includes: anytype, comptime excludes: anytype) type {
-        const View, const Iterator = comptime brk: {
-            if (includes.len == 1 and excludes.len == 0) break :brk .{ ecs.BasicView(includes[0]), ecs.utils.ReverseSliceIterator(ecs.Entity) };
-            break :brk .{ ecs.MultiView(includes, excludes), ecs.MultiView(includes, excludes).Iterator };
-        };
-
-        return struct {
-            game: *Game,
-            view: View,
-            it: ?Iterator = null,
-
-            pub fn init(game: *Game, view: View) @This() {
-                return .{ .game = game, .view = view };
-            }
-
-            pub fn next(self: *@This()) ?EntityContext {
-                const it = self.getIt();
-                const entity = it.next() orelse return null;
-                return .init(self.game, entity);
-            }
-
-            pub fn reset(self: *@This()) void {
-                const it = self.getIt();
-                it.reset();
-            }
-
-            fn getIt(self: *@This()) *Iterator {
-                if (self.it) |*it| return it;
-                self.it = self.view.entityIterator();
-                return &(self.it.?);
-            }
-        };
-    }
-
     pub fn entityIterator(
         self: *@This(),
         comptime includes: anytype,
         comptime excludes: anytype,
-    ) EntityIterator(includes, excludes) {
+    ) L.EntityIterator(includes, excludes) {
         return .init(self, self.reg.view(includes, excludes));
     }
 
     pub fn forEach(
         self: *@This(),
-        callback: fn (EntityContext) void,
+        callback: fn (L.EntityContext) void,
         comptime includes: anytype,
         comptime excludes: anytype,
     ) void {
@@ -341,7 +192,7 @@ pub const Game = struct {
         return self.random_io.interface();
     }
 
-    pub fn hitbox(_: *@This(), ctx: EntityContext) Game.C.Hitbox {
+    pub fn hitbox(_: *@This(), ctx: L.EntityContext) Game.L.Rectangle {
         const body = ctx.get(Game.C.Body);
         return .init(body.position(), body.size());
     }
@@ -372,7 +223,7 @@ pub const Game = struct {
 
     pub fn addAnimationAndRenderable(
         _: *@This(),
-        ctx: EntityContext,
+        ctx: L.EntityContext,
         animation: Game.C.Animation,
     ) void {
         ctx.add(animation);
@@ -380,67 +231,67 @@ pub const Game = struct {
     }
 
     /// Takes a world coord and returns a vector from [0,0] to [1,1]
-    pub fn getRelativePosition(self: *@This(), abs_pos: Game.Vector2) Game.Vector2 {
+    pub fn getRelativePosition(self: *@This(), abs_pos: Game.L.Vector2) Game.L.Vector2 {
         return abs_pos.subtract(self.worldPos()).divide(self.worldSize());
     }
 
     /// Takes a vector from [0,0] to [1,1] and returns a world coord
-    pub fn getAbsolutePos(self: *@This(), rel_pos: Game.Vector2) Game.Vector2 {
+    pub fn getAbsolutePos(self: *@This(), rel_pos: Game.L.Vector2) Game.L.Vector2 {
         return rel_pos * self.worldSize() + self.worldPos();
     }
 
-    pub fn getTexture(self: *@This(), key: Assets.TextureKey) ?Texture {
+    pub fn getTexture(self: *@This(), key: L.Assets.TextureKey) ?L.Texture {
         const texture = self.assets().textures.load(.init(self), key) orelse return null;
         return texture.*;
     }
 
-    pub fn getImage(self: *@This(), key: Assets.ImageKey) ?Image {
+    pub fn getImage(self: *@This(), key: L.Assets.ImageKey) ?L.Image {
         const image = self.assets().images.load(.init(self), key) orelse return null;
         return image.*;
     }
 
-    pub fn getSound(self: *@This(), key: Assets.SoundKey) ?Sound {
+    pub fn getSound(self: *@This(), key: L.Assets.SoundKey) ?L.Sound {
         const sound = self.assets().sounds.load(.init(self), key) orelse return null;
         return sound.*;
     }
 
-    pub fn getMusic(self: *@This(), key: Assets.MusicKey) ?Music {
+    pub fn getMusic(self: *@This(), key: L.Assets.MusicKey) ?L.Music {
         const music = self.assets().musics.load(.init(self), key) orelse return null;
         return music.*;
     }
 
-    pub fn getShader(self: *@This(), key: Assets.ShaderKey) ?Shader {
+    pub fn getShader(self: *@This(), key: L.Assets.ShaderKey) ?L.Shader {
         const shader = self.assets().shaders.load(.init(self), key) orelse return null;
         return shader.*;
     }
 
-    pub fn playSound(self: *@This(), key: Assets.SoundKey) void {
+    pub fn playSound(self: *@This(), key: L.Assets.SoundKey) void {
         const sound = self.getSound(key) orelse return;
         rl.playSound(sound);
     }
 
-    pub fn isSoundPlaying(self: *@This(), key: Assets.SoundKey) bool {
+    pub fn isSoundPlaying(self: *@This(), key: L.Assets.SoundKey) bool {
         const sound = self.getSound(key) orelse return false;
         return rl.isSoundPlaying(sound);
     }
 
-    pub fn setSoundPitch(self: *@This(), key: Assets.SoundKey, pitch: f32) void {
+    pub fn setSoundPitch(self: *@This(), key: L.Assets.SoundKey, pitch: f32) void {
         const sound = self.getSound(key) orelse return;
         rl.setSoundPitch(sound, pitch);
     }
 
-    pub fn setSoundVolume(self: *@This(), key: Assets.SoundKey, volume: f32) void {
+    pub fn setSoundVolume(self: *@This(), key: L.Assets.SoundKey, volume: f32) void {
         const sound = self.getSound(key) orelse return;
         rl.setSoundVolume(sound, volume);
     }
 
-    pub fn playMusic(self: *@This(), key: Assets.MusicKey) void {
+    pub fn playMusic(self: *@This(), key: L.Assets.MusicKey) void {
         const music = self.getMusic(key) orelse return;
         rl.playMusicStream(music);
         self.music = music;
     }
 
-    pub fn beginShaderMode(self: *@This(), key: Assets.ShaderKey) void {
+    pub fn beginShaderMode(self: *@This(), key: L.Assets.ShaderKey) void {
         const shader = self.getShader(key) orelse return;
         rl.beginShaderMode(shader);
     }
@@ -451,7 +302,7 @@ pub const Game = struct {
 
     pub fn setShaderValue(
         self: *@This(),
-        key: Assets.ShaderKey,
+        key: L.Assets.ShaderKey,
         identifier: [:0]const u8,
         value: anytype,
     ) void {
@@ -464,17 +315,17 @@ pub const Game = struct {
         } else if (T == f32 or T == comptime_float or T == f64 or T == comptime_int) {
             const float_value: f32 = value;
             rl.setShaderValue(shader, loc, &float_value, .float);
-        } else if (T == Vector2) {
+        } else if (T == L.Vector2) {
             rl.setShaderValue(shader, loc, &value, .vec2);
-        } else if (T == Vector3) {
+        } else if (T == L.Vector3) {
             rl.setShaderValue(shader, loc, &value, .vec3);
-        } else if (T == Vector4) {
+        } else if (T == L.Vector4) {
             rl.setShaderValue(shader, loc, &value, .vec4);
-        } else if (T == Color) {
+        } else if (T == L.Color) {
             rl.setShaderValue(shader, loc, &.{ value.r, value.g, value.b, value.a }, .vec4);
         } else if (T == bool) {
             rl.setShaderValue(shader, loc, &@intFromBool(value), .int);
-        } else if (T == Texture) {
+        } else if (T == L.Texture) {
             rl.setShaderValueTexture(shader, loc, value);
         } else if (@typeInfo(T) == .array) {
             const uniform_type = switch (@typeInfo(T).array.len) {
@@ -492,7 +343,7 @@ pub const Game = struct {
         self: *Game,
         comptime includes: anytype,
         comptime excludes: anytype,
-    ) ?Game.EntityContext {
+    ) ?Game.L.EntityContext {
         var len: usize = 0;
         var it = self.entityIterator(includes, excludes);
         while (it.next()) |_| len += 1;
@@ -504,5 +355,53 @@ pub const Game = struct {
 
     pub fn chance(self: *Game, chance_: f32) bool {
         return self.random().float(f32) <= chance_;
+    }
+
+    const NoiseOptions = struct {
+        seed: u64 = 0,
+    };
+
+    pub fn noiseInit(self: *Game, options: NoiseOptions) L.PerlinNoise2D {
+        if (!self.noise_cache.contains(options.seed)) {
+            self.noise_cache.put(self.allocator, options.seed, .init(options.seed)) catch unreachable;
+        }
+
+        return self.noise_cache.get(options.seed).?;
+    }
+
+    pub fn noise(self: *Game, v: L.Vector2, options: NoiseOptions) f32 {
+        const noise_ = self.noiseInit(options);
+        const x, const y = v;
+        return noise_.noise(x, y);
+    }
+
+    pub const standard_sprite_size = L.Vector2{ 16, 16 };
+
+    pub const SpriteOptions = struct {
+        size: L.Vector2 = standard_sprite_size,
+        texture: L.Assets.TextureKey,
+    };
+
+    pub fn sprite(self: *Game, offset: L.Vector2, options: SpriteOptions) Game.C.Renderable {
+        const texture = self.getTexture(options.texture) orelse unreachable;
+        return .initSprite(texture, L.Rectangle.init(offset, options.size));
+    }
+
+    pub fn on(
+        self: *Game,
+        event_type: Game.C.Event.EntityEventTag,
+        listener: Game.S.Event.EntityEventListener,
+    ) void {
+        const event = self.getSingleton(Game.S.Event);
+        event.on(event_type, listener);
+    }
+
+    pub fn off(
+        self: *Game,
+        event_type: Game.C.Event.EntityEventTag,
+        listener: Game.S.Event.EntityEventListener,
+    ) void {
+        const event = self.getSingleton(Game.S.Event);
+        event.off(event_type, listener);
     }
 };

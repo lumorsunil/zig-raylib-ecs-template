@@ -10,7 +10,7 @@ pub const PhysicsBackend = struct {
 
     pub fn getProperty(
         comptime target: ApplyTarget,
-        ctx: Game.EntityContext,
+        ctx: Game.L.EntityContext,
     ) target.ProviderElement() {
         var target_component = getTargetComponent(target, ctx);
         const ptr = target_component.ptr();
@@ -24,7 +24,7 @@ pub const PhysicsBackend = struct {
 
     pub fn applyToComponent(
         comptime target: ApplyTarget,
-        ctx: Game.EntityContext,
+        ctx: Game.L.EntityContext,
         op: ApplyOperation(target.ProviderElement()),
     ) void {
         var target_component = getTargetComponent(target, ctx);
@@ -34,7 +34,7 @@ pub const PhysicsBackend = struct {
 
     pub fn applyAction(
         comptime target: ActionTarget,
-        ctx: Game.EntityContext,
+        ctx: Game.L.EntityContext,
         value: target.ProviderElement(),
     ) void {
         const action = getAction(target, ctx);
@@ -133,7 +133,7 @@ pub const PhysicsBackend = struct {
             return switch (self) {
                 .x => f32,
                 .y => f32,
-                .xy => Game.Vector2,
+                .xy => Game.L.Vector2,
             };
         }
 
@@ -156,15 +156,15 @@ pub const PhysicsBackend = struct {
             switch (op) {
                 inline else => |s, t| {
                     if (@TypeOf(s) == void) {
-                        const v_op = @unionInit(ApplyOperation(Game.Vector2), @tagName(t), {});
-                        var target_temp = Game.V.v2(target.@"0".*, target.@"1".*);
-                        applyOperation(Game.Vector2, *Game.Vector2, v_op, &target_temp);
+                        const v_op = @unionInit(ApplyOperation(Game.L.Vector2), @tagName(t), {});
+                        var target_temp = Game.L.V.v2(target.@"0".*, target.@"1".*);
+                        applyOperation(Game.L.Vector2, *Game.L.Vector2, v_op, &target_temp);
                         target.@"0".* = target_temp[0];
                         target.@"1".* = target_temp[1];
                     } else {
-                        const v_op = @unionInit(ApplyOperation(Game.Vector2), @tagName(t), s);
-                        var target_temp = Game.V.v2(target.@"0".*, target.@"1".*);
-                        applyOperation(Game.Vector2, *Game.Vector2, v_op, &target_temp);
+                        const v_op = @unionInit(ApplyOperation(Game.L.Vector2), @tagName(t), s);
+                        var target_temp = Game.L.V.v2(target.@"0".*, target.@"1".*);
+                        applyOperation(Game.L.Vector2, *Game.L.Vector2, v_op, &target_temp);
                         target.@"0".* = target_temp[0];
                         target.@"1".* = target_temp[1];
                     }

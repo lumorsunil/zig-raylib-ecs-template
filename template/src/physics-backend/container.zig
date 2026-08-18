@@ -1,19 +1,19 @@
 const Game = @import("../game.zig").Game;
-const ApplyTarget = Game.PhysicsBackend.ApplyTarget;
-const ActionTarget = Game.PhysicsBackend.ActionTarget;
-const ComputedTarget = Game.PhysicsBackend.ComputedTarget;
+const ApplyTarget = Game.L.PhysicsBackend.ApplyTarget;
+const ActionTarget = Game.L.PhysicsBackend.ActionTarget;
+const ComputedTarget = Game.L.PhysicsBackend.ComputedTarget;
 
-fn getContainer(ctx: Game.EntityContext) *Game.S.Physics.BodyContainer {
+fn getContainer(ctx: Game.L.EntityContext) *Game.S.Physics.BodyContainer {
     return &ctx.game.getSingleton(Game.S.Physics).container;
 }
 
 pub const PhysicsBackendImplContainer = struct {
     pub fn Commit(comptime target: ApplyTarget) type {
         return struct {
-            ctx: Game.EntityContext,
+            ctx: Game.L.EntityContext,
             ptr_: target.PtrElement(),
 
-            pub fn init(ctx: Game.EntityContext, ptr_: target.PtrElement()) @This() {
+            pub fn init(ctx: Game.L.EntityContext, ptr_: target.PtrElement()) @This() {
                 return .{
                     .ctx = ctx,
                     .ptr_ = ptr_,
@@ -30,9 +30,9 @@ pub const PhysicsBackendImplContainer = struct {
 
     pub fn Action(comptime target: ActionTarget) type {
         return struct {
-            ctx: Game.EntityContext,
+            ctx: Game.L.EntityContext,
 
-            pub fn init(ctx: Game.EntityContext) @This() {
+            pub fn init(ctx: Game.L.EntityContext) @This() {
                 return .{ .ctx = ctx };
             }
 
@@ -58,7 +58,7 @@ pub const PhysicsBackendImplContainer = struct {
 
     pub fn getComputed(
         comptime target: ComputedTarget,
-        ctx: Game.EntityContext,
+        ctx: Game.L.EntityContext,
     ) target.Element() {
         const container = getContainer(ctx);
         const index = ctx.entity.index;
@@ -77,7 +77,7 @@ pub const PhysicsBackendImplContainer = struct {
 
     pub fn getTargetComponent(
         comptime target: ApplyTarget,
-        ctx: Game.EntityContext,
+        ctx: Game.L.EntityContext,
     ) Commit(target) {
         const container = getContainer(ctx);
         const index = ctx.entity.index;
@@ -116,7 +116,7 @@ pub const PhysicsBackendImplContainer = struct {
 
     pub fn getAction(
         comptime target: ActionTarget,
-        ctx: Game.EntityContext,
+        ctx: Game.L.EntityContext,
     ) Action(target) {
         return .init(ctx);
     }

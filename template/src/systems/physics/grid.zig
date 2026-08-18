@@ -34,7 +34,7 @@ pub fn Grid(comptime Cell: type, comptime options: GridOptions(Cell)) type {
             allocator.free(self.data);
         }
 
-        pub fn cellSize(_: @This()) Game.Vector2 {
+        pub fn cellSize(_: @This()) Game.L.Vector2 {
             return .{ 32, 32 };
         }
 
@@ -44,17 +44,17 @@ pub fn Grid(comptime Cell: type, comptime options: GridOptions(Cell)) type {
             max_x: usize,
             max_y: usize,
 
-            pub fn init(grid: G, hitbox: Game.Rectangle) @This() {
+            pub fn init(grid: G, hitbox: Game.L.Rectangle) @This() {
                 const cell_size = grid.cellSize();
 
                 const hitbox_min = @round(hitbox.min());
-                const hitbox_max = @max(hitbox_min, @round(hitbox.max()) - Game.V.scalar2(1));
+                const hitbox_max = @max(hitbox_min, @round(hitbox.max()) - Game.L.V.scalar2(1));
 
-                const min = Game.V.toInt(
+                const min = Game.L.V.toInt(
                     usize,
                     grid.clampToGrid(@divFloor(hitbox_min, cell_size)),
                 );
-                const max = Game.V.toInt(
+                const max = Game.L.V.toInt(
                     usize,
                     grid.clampToGrid(@divFloor(hitbox_max, cell_size)),
                 );
@@ -70,26 +70,26 @@ pub fn Grid(comptime Cell: type, comptime options: GridOptions(Cell)) type {
             }
         };
 
-        fn clampToGrid(self: @This(), v: Game.Vector2) Game.Vector2 {
-            const size = Game.V.v2(self.width, self.height);
-            return @max(Game.V.scalar2(0), @min(size - Game.V.scalar2(1), v));
+        fn clampToGrid(self: @This(), v: Game.L.Vector2) Game.L.Vector2 {
+            const size = Game.L.V.v2(self.width, self.height);
+            return @max(Game.L.V.scalar2(0), @min(size - Game.L.V.scalar2(1), v));
         }
 
-        fn getRecPos(rec: Game.Rectangle, comptime axis: Axis) f32 {
+        fn getRecPos(rec: Game.L.Rectangle, comptime axis: Axis) f32 {
             return switch (comptime axis) {
                 .x => rec.position[0],
                 .y => rec.position[1],
             };
         }
 
-        fn getRecSize(rec: Game.Rectangle, comptime axis: Axis) f32 {
+        fn getRecSize(rec: Game.L.Rectangle, comptime axis: Axis) f32 {
             return switch (comptime axis) {
                 .x => rec.size[0],
                 .y => rec.size[1],
             };
         }
 
-        fn getVectorComponent(v: Game.Vector2, comptime axis: Axis) f32 {
+        fn getVectorComponent(v: Game.L.Vector2, comptime axis: Axis) f32 {
             return switch (comptime axis) {
                 .x => v[0],
                 .y => v[1],
@@ -108,24 +108,24 @@ pub fn Grid(comptime Cell: type, comptime options: GridOptions(Cell)) type {
         pub fn resolveCollisions(
             self: *@This(),
             game: *Game,
-            ctx: Game.EntityContext,
+            ctx: Game.L.EntityContext,
             body: *Game.C.Body,
-            callback: *const fn (Game.EntityContext, *Game.C.Body, ResolveCollisionEvent) void,
+            callback: *const fn (Game.L.EntityContext, *Game.C.Body, ResolveCollisionEvent) void,
             comptime axiis: []const Axis,
         ) void {
             const hitbox = game.hitbox(ctx);
-            const candidates = CellCandidates.init(self.*, hitbox.hitbox);
+            const candidates = CellCandidates.init(self.*, hitbox);
             const cell_size = self.cellSize();
 
             for (candidates.min_x..candidates.max_x + 1) |x| {
                 for (candidates.min_y..candidates.max_y + 1) |y| {
                     if (!self.isSolid(game, x, y)) continue;
 
-                    const cell_pos = Game.V.v2(x, y) * cell_size;
+                    const cell_pos = Game.L.V.v2(x, y) * cell_size;
 
                     inline for (comptime axiis) |axis| {
-                        const body_min = getRecPos(hitbox.hitbox, axis);
-                        const body_max = body_min + getRecSize(hitbox.hitbox, axis);
+                        const body_min = getRecPos(hitbox, axis);
+                        const body_max = body_min + getRecSize(hitbox, axis);
                         const cell_min = getVectorComponent(cell_pos, axis);
                         const cell_max = cell_min + getVectorComponent(cell_size, axis);
 

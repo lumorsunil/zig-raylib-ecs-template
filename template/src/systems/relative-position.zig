@@ -32,7 +32,7 @@ pub const RelativePosition = struct {
         }
     }
 
-    fn process(ctx: Game.EntityContext) void {
+    fn process(ctx: Game.L.EntityContext) void {
         const relative_position = ctx.get(Game.C.RelativePosition);
 
         if (relative_position.has_been_processed) return;

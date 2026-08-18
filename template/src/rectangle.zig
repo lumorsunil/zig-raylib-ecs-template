@@ -3,10 +3,10 @@ const Game = @import("game.zig").Game;
 const rl = @import("raylib");
 
 pub const Rectangle = struct {
-    position: Game.Vector2,
-    size: Game.Vector2,
+    position: Game.L.Vector2,
+    size: Game.L.Vector2,
 
-    pub fn init(position: Game.Vector2, size: Game.Vector2) @This() {
+    pub fn init(position: Game.L.Vector2, size: Game.L.Vector2) @This() {
         return .{ .position = position, .size = size };
     }
 
@@ -18,11 +18,11 @@ pub const Rectangle = struct {
         return @bitCast(rec);
     }
 
-    pub fn min(self: @This()) Game.Vector2 {
+    pub fn min(self: @This()) Game.L.Vector2 {
         return self.position;
     }
 
-    pub fn max(self: @This()) Game.Vector2 {
+    pub fn max(self: @This()) Game.L.Vector2 {
         return self.position + self.size;
     }
 

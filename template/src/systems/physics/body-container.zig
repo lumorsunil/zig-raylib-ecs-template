@@ -9,7 +9,7 @@ const VAL = VectorArrayList(f32, 0, .default);
 const VAL_B = VectorArrayList(bool, false, .{ .custom = VAL_B_len });
 const VA = VAL.Vector;
 const VA_B = VAL_B.Vector;
-const Vector = Game.Vector2;
+const Vector = Game.L.Vector2;
 const Axis = Game.S.Physics.Axis;
 
 pub const BodyContainer = struct {
@@ -171,7 +171,7 @@ pub const BodyContainer = struct {
     pub fn updatePositions(self: *@This(), drag_factor: f32, dt: f32, comptime axis: Axis) void {
         @setRuntimeSafety(false);
 
-        const frame_zone = Game.tracyZoneN(@src(), @src().fn_name ++ "(" ++ @tagName(axis) ++ ")");
+        const frame_zone = Game.L.tracyZoneN(@src(), @src().fn_name ++ "(" ++ @tagName(axis) ++ ")");
         defer frame_zone.end();
 
         switch (comptime axis) {
@@ -191,7 +191,7 @@ pub const BodyContainer = struct {
     pub fn updateRotation(self: *@This(), drag_factor: f32, dt: f32) void {
         @setRuntimeSafety(false);
 
-        const frame_zone = Game.tracyZoneN(@src(), @src().fn_name);
+        const frame_zone = Game.L.tracyZoneN(@src(), @src().fn_name);
         defer frame_zone.end();
 
         self.applyDrag(&self.rotation_velocity, drag_factor, dt);
