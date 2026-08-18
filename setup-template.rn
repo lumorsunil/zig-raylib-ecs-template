@@ -10,6 +10,19 @@ if ("${template_root}" == "null") {
   echo "error: ZIG_RAYLIB_ECS_TEMPLATE_ROOT env var not set" >&2
   exit 1
 }
+const is_dir_empty = ls "-lA" | tr "-d" "\n"
+fn String readAns() String {
+  cat | head "-n" 1 | tr "-d" "\n"
+}
+if ("${is_dir_empty}" != "total 0") {
+  echo "warning: dir not empty, continue anyway?"
+  const ans = readAns
+
+  if (ans != "y") {
+    echo "aborting"
+    exit 0
+  }
+}
 echo "initializing zig raylib ecs project into ${out_dir}"
 zig "init"
 git "init"
